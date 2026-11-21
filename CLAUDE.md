@@ -57,7 +57,8 @@ Versi persis: `package.json` tiap package + `pnpm-workspace.yaml` (overrides `@c
 - Bug: cari akar masalah; jangan workaround tanpa memahami penyebab.
 - Tidak ada rewrite besar tanpa justifikasi + persetujuan owner.
 - Jangan install dependency di luar stack tanpa alasan tertulis.
-- Jangan hapus file pengguna / perintah destruktif. Commit hanya bila owner meminta. Branch utama: `main`.
+- Jangan hapus file pengguna / perintah destruktif. Branch utama: `main`.
+- **Commit hanya bila `pnpm verify` lulus** (skrip commit wajib berhenti bila verify merah). Lalu push ke `origin`.
 
 ## Aset & lisensi
 - Hanya CC0, CC-BY 3.0/4.0, MIT/BSD, OFL, atau buatan sendiri. Tolak NC/ND/tidak jelas. **Tidak boleh** aset/kode/audio/UI dari Raft atau game lain.
