@@ -1,0 +1,26 @@
+# Normalize text files to LF in the repository (Windows checkouts stay consistent).
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF
+*.ps1   text eol=crlf
+*.cmd   text eol=crlf
+*.bat   text eol=crlf
+
+# Binary assets — never diff/merge as text.
+# Git LFS is NOT enabled yet; decision deferred until the first real asset batch (see docs/ASSET_PIPELINE.md).
+*.glb   binary
+*.gltf  text eol=lf
+*.bin   binary
+*.blend binary
+*.fbx   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.ktx2  binary
+*.hdr   binary
+*.exr   binary
+*.ogg   binary
+*.mp3   binary
+*.wav   binary
+*.woff2 binary

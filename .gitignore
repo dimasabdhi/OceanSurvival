@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+.vite/
+
+# Test & coverage output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Environment & secrets (never commit real credentials)
+.env
+.env.*
+!.env.example
+
+# Local data
+/data/
+/backups/
+*.dump
+*.sql.gz
+*.log
+logs/
+
+# Profiling / benchmark output
+/profiles/
+/bench-results/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Blender autosave / backup files
+*.blend1
+*.blend2
+
+# Claude Code local settings
+.claude/settings.local.json

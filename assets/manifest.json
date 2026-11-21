@@ -1,0 +1,6 @@
+{
+  "$comment": "OceanSurvival asset & license manifest. Every file under assets/ MUST have an entry. Schema and rules: docs/ASSET_PIPELINE.md. Validated by tools/validate-assets (Phase 1).",
+  "manifestVersion": 1,
+  "acceptedLicenses": ["CC0-1.0", "CC-BY-3.0", "CC-BY-4.0", "MIT", "BSD-2-Clause", "BSD-3-Clause", "OFL-1.1", "Original"],
+  "assets": []
+}
