@@ -12,10 +12,11 @@ Terinspirasi oleh *jenis* gameplay seperti Raft, tetapi **seluruh identitas, dun
 
 | Phase | Status |
 |---|---|
-| Phase 0 — Arsitektur & dokumentasi | ✅ Dokumen dibuat, menunggu persetujuan owner |
-| Phase 1 — Fondasi repo & tech spikes | ⏳ Belum dimulai |
+| Phase 0 — Arsitektur & dokumentasi | ✅ Selesai |
+| Phase 1 — Fondasi repo & tech spikes | ✅ Selesai, menunggu review owner ([laporan](docs/reports/PHASE_01_REPORT.md)) |
+| Phase 2 — Multiplayer foundation | ⏳ Belum dimulai |
 
-Belum ada kode yang bisa dijalankan. Roadmap lengkap: [docs/ROADMAP.md](docs/ROADMAP.md).
+Yang bisa dijalankan sekarang: laut 3D dengan siklus siang–malam, kamera terbang (debug), overlay performa, koneksi ke server pengembangan, benchmark, dan spike teknis. **Belum ada gameplay.** Roadmap lengkap: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Teknologi
 
@@ -39,11 +40,11 @@ docs/            Seluruh dokumentasi desain
 
 ## Menjalankan development
 
-> Tersedia mulai **Phase 1**. Panduan lengkap untuk Windows: [docs/DEV_SETUP_WINDOWS.md](docs/DEV_SETUP_WINDOWS.md).
+Panduan lengkap untuk Windows: [docs/DEV_SETUP_WINDOWS.md](docs/DEV_SETUP_WINDOWS.md).
 
 Prasyarat: Node.js 24.13.0, pnpm 12.21.0, Git, Docker Desktop (untuk PostgreSQL mulai Phase 8), Chrome atau Edge terbaru.
 
-Rencana perintah (PowerShell, dari folder project):
+Perintah (PowerShell, dari folder project):
 
 ```powershell
 pnpm install
@@ -53,7 +54,11 @@ pnpm install
 pnpm dev
 ```
 
-Lalu buka `http://localhost:5173` di Chrome/Edge.
+Lalu buka `http://localhost:5173` di Chrome/Edge. Pemeriksaan kualitas lengkap:
+
+```powershell
+pnpm verify
+```
 
 ## Dokumentasi
 

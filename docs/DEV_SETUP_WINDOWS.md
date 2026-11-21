@@ -1,6 +1,6 @@
 # Development Setup (Windows) — OceanSurvival
 
-Status: **Draft untuk Phase 1** — langkah akan diuji langsung di PC owner saat Phase 1 dan diperbaiki bila ada kendala. Saat Phase 0 belum ada kode untuk dijalankan.
+Status: **Diverifikasi di PC owner pada Phase 1 (2026-11-21)** oleh Claude. Owner diminta mencoba sendiri langkah 3–7 sebagai bagian review Phase 1.
 
 Semua perintah dijalankan di **PowerShell** dari folder project:
 `C:\Users\Dimas\Documents\Dimas-data\Project-Dimas\OceanSurvival`
@@ -10,7 +10,7 @@ Semua perintah dijalankan di **PowerShell** dari folder project:
 |---|---|---|
 | Node.js | 24.13.0 | ✅ terpasang |
 | Git | 2.4x+ | ✅ 2.52.0 |
-| pnpm | 12.21.0 | ❌ belum — langkah 2 |
+| pnpm | 12.21.0 | ✅ dipasang di Phase 1 (langkah 2) |
 | Docker Desktop | 29.x (mulai Phase 8) | ✅ 29.5.3 |
 | Chrome / Edge | terbaru | ✅ 157 / 158 |
 
@@ -33,9 +33,14 @@ Hasil yang diharapkan: `12.21.0`.
 ```powershell
 pnpm install
 ```
-pnpm hanya menjalankan build script dari paket yang di-allowlist (`onlyBuiltDependencies` di konfigurasi workspace). Bila muncul peringatan "ignored build scripts", laporkan ke Claude — jangan menyetujui semua paket sekaligus.
+pnpm hanya menjalankan build script dari paket yang diizinkan (`allowBuilds` di `pnpm-workspace.yaml`; saat ini hanya `esbuild`). Bila muncul error "Ignored build scripts", laporkan ke Claude — jangan menyetujui semua paket sekaligus.
 
-## 4. Siapkan file environment
+Peringatan yang **normal** (bukan masalah):
+- `Issues with peer dependencies found` → `missing peer @colyseus/uwebsockets-transport`: sengaja tidak dipasang (alasan keamanan, lihat TECHNICAL_ARCHITECTURE §2).
+- `1 deprecated subdependencies found: uuid@8.3.2`: berasal dari dependency Colyseus, tidak berdampak.
+
+## 4. Siapkan file environment (opsional)
+Tanpa `.env`, nilai default sudah aman untuk satu PC (server hanya mendengarkan `127.0.0.1:2567`). Bila perlu mengubah:
 ```powershell
 Copy-Item .env.example .env
 ```
@@ -45,15 +50,35 @@ Isi `.env` hanya untuk komputer Anda; file ini tidak masuk Git.
 ```powershell
 pnpm dev
 ```
-- Client: buka `http://localhost:5173` di Chrome atau Edge.
-- Server: berjalan di `http://localhost:2567` (monitor Colyseus hanya di development).
-- Hentikan dengan `Ctrl + C`.
+- Client: buka `http://localhost:5173` di Chrome atau Edge → klik **Klik untuk mulai**.
+- Kontrol (kamera debug Phase 1): WASD bergerak, mouse melihat, Space naik, C turun, Shift cepat, **Esc** jeda (menu kualitas grafik, waktu, kecepatan waktu, FOV, sensitivitas), **F3** sembunyikan/tampilkan overlay performa.
+- Pojok kanan atas: status server ("Server: terhubung · n pemain · ping") dan jam dunia.
+- Server: berjalan di `ws://127.0.0.1:2567`. Hentikan keduanya dengan `Ctrl + C`.
+
+Mode khusus (tambahkan di akhir alamat):
+| Alamat | Fungsi |
+|---|---|
+| `http://localhost:5173/?net=0` | Tanpa koneksi server |
+| `http://localhost:5173/?spike=rapier` | Uji fisika Rapier di browser (hasil harus "COCOK") |
+| `http://localhost:5173/?bench=ocean&seconds=60` | Benchmark laut 60 detik (hasil tampil di layar) |
+| `http://localhost:5173/?quality=low` | Paksa kualitas Rendah/Sedang/Tinggi (`low`/`medium`/`high`) |
 
 ## 6. Menjalankan pemeriksaan kualitas
 ```powershell
 pnpm verify
 ```
-(lint + typecheck + unit/integration test + validasi aset)
+(lint + typecheck + unit/integration test + validasi aset; ±5 detik)
+
+Tes end-to-end di Chrome & Edge (memakai browser yang sudah terpasang, otomatis menjalankan server bila belum jalan):
+```powershell
+pnpm test:e2e
+```
+
+Benchmark otomatis (membuka jendela Chrome ±3,5 menit; jangan pakai PC selama berjalan):
+```powershell
+pnpm bench:ocean
+```
+Hasil disimpan di folder `bench-results/` (tidak masuk Git).
 
 ## 7. Tes multiplayer di satu PC
 Buka 2–4 tab/jendela (bisa campur Chrome & Edge) ke `http://localhost:5173` dan join world yang sama.

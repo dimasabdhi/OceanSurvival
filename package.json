@@ -1,0 +1,35 @@
+{
+  "name": "oceansurvival",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.21.0",
+  "engines": {
+    "node": ">=24.13.0 <25"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @oceansurvival/server --filter @oceansurvival/client dev",
+    "dev:client": "pnpm --filter @oceansurvival/client dev",
+    "dev:server": "pnpm --filter @oceansurvival/server dev",
+    "build": "pnpm --filter @oceansurvival/client build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "bench:ocean": "playwright test --config playwright.bench.config.ts",
+    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.json",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "validate:assets": "tsx tools/validate-assets.ts",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm validate:assets"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.6.7",
+    "@playwright/test": "1.65.1",
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0",
+    "zod": "4.6.7"
+  }
+}

@@ -4,6 +4,11 @@ Status: **Draft v1 (Phase 0)** · ADR: [0004](adr/0004-colyseus-018-authoritativ
 
 > API Colyseus yang disebut di sini berdasarkan dokumentasi 0.18 (`docs.colyseus.io`, dibaca 2026-11-21). **Sebelum implementasi, verifikasi signature persis** dari halaman `.md` resmi untuk versi terpasang.
 
+> **Update Phase 1 (2026-11-21):**
+> - Colyseus 0.18 menyediakan netcode bawaan (`defineInput`, `setFixedTimestep`, `room.input()`, `room.clock`, `Predict`/`predict.sim`, `allowRewindState`). Mekanisme §5–§6 (queue input, ack, replay, time sync) akan **memakai primitive ini** alih-alih ditulis sendiri — lihat [ADR-0013](adr/0013-colyseus-builtin-netcode.md) (Proposed, divalidasi Phase 2). Pesan `input.cmds` dan `time.sync` di §9 digantikan oleh `room.input()` dan `room.clock`.
+> - Dokumentasi `StateView` memperingatkan bahwa fitur ini belum dioptimalkan untuk dataset besar. AOI debris/creature (§8.2) harus di-benchmark di Phase 4; alternatif resmi: *Streaming Collections* (`t.stream()`).
+> - Simulasi latensi untuk test: `server.simulateLatency(ms)` / env `COLYSEUS_LATENCY` (bawaan Colyseus) menggantikan rencana `tools/netsim`.
+
 ## 1. Prinsip
 1. **Server authoritative** untuk semua state bersama dan posisi pemain.
 2. Client mengirim **input & intent**, bukan hasil.

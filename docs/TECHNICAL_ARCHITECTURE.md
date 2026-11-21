@@ -13,25 +13,33 @@ Status: **Draft v1 (Phase 0)** · Keputusan detail: [adr/](adr/README.md) · Net
 | PostgreSQL native | 18.3 service di :5432 (tidak dipakai project; project memakai container di :5433) |
 | Browser | Chrome 157, Edge 158 |
 
-## 2. Stack & versi (diverifikasi via npm registry 2026-11-21)
-| Area | Paket | Versi kandidat | ADR |
+## 2. Stack & versi (terpasang & di-pin di Phase 1, 2026-11-21)
+| Area | Paket | Versi terpasang | ADR |
 |---|---|---|---|
 | Monorepo | pnpm workspaces | 12.21.0 | [0001](adr/0001-pnpm-monorepo.md) |
-| Bahasa | typescript | 7.0.2 | [0011](adr/0011-typescript-7.md) |
+| Bahasa | typescript | 7.0.2 (spike lulus) | [0011](adr/0011-typescript-7.md) |
 | Rendering | three, @types/three | 0.187.0 | [0002](adr/0002-threejs-webgl2-renderer.md) |
 | Bundler | vite | 8.3.8 | [0001](adr/0001-pnpm-monorepo.md) |
 | Physics | @dimforge/rapier3d-compat | 0.21.0 | [0003](adr/0003-rapier-physics-both-sides.md) |
-| Server MP | colyseus | 0.18.12 | [0004](adr/0004-colyseus-018-authoritative-server.md) |
-| Client MP | @colyseus/sdk | 0.18.10 | [0004](adr/0004-colyseus-018-authoritative-server.md) |
-| State sync | @colyseus/schema | 5.0.x (pin saat Phase 1; 5.0.50 rilis 2026-11-19 → tunggu ≥ 7 hari atau pakai patch sebelumnya) | [0004](adr/0004-colyseus-018-authoritative-server.md) |
+| Server MP | colyseus (+ express 5.3.0 sebagai peer ws-transport) | 0.18.12 | [0004](adr/0004-colyseus-018-authoritative-server.md) |
+| Server MP core | @colyseus/core (override) | 0.18.28 | [0004](adr/0004-colyseus-018-authoritative-server.md) |
+| Client MP | @colyseus/sdk | 0.18.10 | [0004](adr/0004-colyseus-018-authoritative-server.md), [0013](adr/0013-colyseus-builtin-netcode.md) |
+| State sync | @colyseus/schema (override, satu versi di semua package) | 5.0.48 | [0004](adr/0004-colyseus-018-authoritative-server.md) |
+| Room test | @colyseus/testing | 0.18.6 | [0012](adr/0012-tooling-biome-vitest-playwright.md) |
 | Validasi | zod | 4.6.7 | [0004](adr/0004-colyseus-018-authoritative-server.md) |
 | UI | preact, @preact/signals | 11.2.0, 2.11.4 | [0008](adr/0008-preact-signals-ui.md) |
-| DB | kysely, pg | 0.29.9, 8.23.1 | [0007](adr/0007-persistence-strategy.md) |
-| Test | vitest, @playwright/test | 5.1.1, 1.65.1 | [0012](adr/0012-tooling-biome-vitest-playwright.md) |
-| Lint/format | @biomejs/biome | 2.6.8 | [0012](adr/0012-tooling-biome-vitest-playwright.md) |
+| DB (Phase 8) | kysely, pg | 0.29.9, 8.23.1 (belum terpasang) | [0007](adr/0007-persistence-strategy.md) |
+| Test | vitest, @playwright/test | 5.1.0, 1.65.1 | [0012](adr/0012-tooling-biome-vitest-playwright.md) |
+| Lint/format | @biomejs/biome | 2.6.7 | [0012](adr/0012-tooling-biome-vitest-playwright.md) |
 | Dev runner | tsx | 4.23.15 | [0012](adr/0012-tooling-biome-vitest-playwright.md) |
+| Types | @types/node | 24.19.2 | — |
 
-Kebijakan: semua versi **exact pin**; upgrade hanya lewat PR/commit tersendiri dengan catatan changelog dan test hijau. Kompatibilitas engine terverifikasi: Colyseus `node >= 22`, Vite `>=22.12`, Vitest `^24` → Node 24.13 memenuhi semua.
+Kebijakan: semua versi **exact pin**; upgrade hanya lewat commit tersendiri dengan catatan changelog dan test hijau. Rilis yang umurnya < 7 hari saat dipasang tidak dipakai (contoh: Biome 2.6.8 → 2.6.7, Vitest 5.1.1 → 5.1.0, schema 5.0.50 → 5.0.48, core 0.18.29 → 0.18.28). Kompatibilitas engine terverifikasi: Colyseus `node >= 22`, Vite `>=22.12`, Vitest `^24` → Node 24.13 memenuhi semua.
+
+### Konfigurasi pnpm (pnpm-workspace.yaml)
+- `allowBuilds`: hanya `esbuild` yang boleh menjalankan build script; `msgpackr-extract` (akselerator native opsional) ditolak.
+- `autoInstallPeers: false`: `colyseus` mendeklarasikan `@colyseus/uwebsockets-transport` sebagai peer, yang bergantung pada `uWebSockets.js` dari URL GitHub. pnpm 12 memblokir dependency "exotic" seperti itu (`blockExoticSubdeps`) dan perlindungan itu **tetap aktif**; kita memakai transport `ws` bawaan. `pnpm peers check` akan melaporkan peer ini hilang — itu disengaja.
+- `overrides`: `@colyseus/schema` dan `@colyseus/core` dipaksa satu versi agar client & server meng-encode/decode state dengan versi identik.
 
 ### Evaluasi pertanyaan owner
 | Pertanyaan | Keputusan | Alasan |
@@ -172,6 +180,16 @@ Detail di [DATABASE_DESIGN](DATABASE_DESIGN.md). `WorldRepository` (interface) �
 
 ## 12. Graceful shutdown
 SIGINT/SIGTERM → Colyseus `gracefullyShutdown` → setiap WorldRoom `onBeforeShutdown`: broadcast "server restarting", flush save (timeout 10 s) → `onDispose` → close DB pool.
+
+## 13a. Hasil tech spikes Phase 1 (2026-11-21)
+| Spike | Hasil |
+|---|---|
+| TypeScript 7 | ✅ `pnpm typecheck` semua package ±1 s, tanpa fallback |
+| Rapier compat Node & browser | ✅ Hash 600 step `8941d541` identik di Node 24, Chrome 157, Edge 158 |
+| Colyseus 0.18 | ✅ schema builder, `validate(zod)` (payload salah → close 4002), `StateView` (field privat), `defineInput`+`sanitize`+`setFixedTimestep`, `onAuth` zod — 5 integration test |
+| Ocean shader | ✅ Gerstner 4 gelombang + fade jarak, radial grid satu mesh; ±165 FPS (6.1 ms/frame, dibatasi monitor 165 Hz) 1920×1080 High; 3 draw call, 126.720 segitiga |
+| Preact overlay + pointer lock | ✅ Chrome & Edge (E2E); Esc fisik = uji manual |
+Temuan penting: Colyseus 0.18 punya netcode bawaan (prediction/reconciliation/lag compensation) → [ADR-0013](adr/0013-colyseus-builtin-netcode.md). Server tidak memakai `listen()` dari `@colyseus/tools` karena fungsi itu bind ke semua interface; `index.ts` memanggil `server.listen(port, SERVER_HOST)`.
 
 ## 13. Tech spikes wajib di Phase 1 (sebelum fitur)
 1. TypeScript 7: typecheck monorepo + Vite + Vitest + Colyseus schema types.

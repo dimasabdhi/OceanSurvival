@@ -1,0 +1,26 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# Dependency build scripts are deny-by-default in pnpm. Only allow what we need:
+# - esbuild: verifies its platform binary (used by tsx / vite tooling).
+# - msgpackr-extract: optional native accelerator for msgpackr; pure-JS fallback is fine.
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: false
+
+# Do not auto-install peer dependencies. `colyseus` declares
+# `@colyseus/uwebsockets-transport` as a (non-optional) peer, which depends on
+# `uWebSockets.js` from a GitHub URL. pnpm blocks such "exotic" sub-dependencies
+# (blockExoticSubdeps) and we keep that protection on. We use the default
+# `ws` transport, so the uWebSockets peer is intentionally left uninstalled
+# (`pnpm peers check` reports it as missing: expected).
+# Peers we actually need are declared explicitly in each package.json.
+autoInstallPeers: false
+
+# One version of the Colyseus wire/state packages across client, server and shared.
+# Client and server MUST decode/encode with the same @colyseus/schema version.
+# Pinned to releases at least 7 days old (see docs/TECHNICAL_ARCHITECTURE.md §2).
+overrides:
+  "@colyseus/schema": "5.0.48"
+  "@colyseus/core": "0.18.28"
