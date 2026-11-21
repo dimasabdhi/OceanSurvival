@@ -1,3 +1,5 @@
+import { DEFAULT_WORLD_ID } from "@oceansurvival/shared";
+
 /** URL query parameters for dev/benchmark modes. */
 export interface LaunchParams {
   /** `?bench=ocean` runs the deterministic ocean benchmark. */
@@ -10,6 +12,8 @@ export interface LaunchParams {
   net: boolean;
   /** `?quality=low|medium|high`. */
   quality: "low" | "medium" | "high" | null;
+  /** `?world=<id>`: which world to join (dev/testing; default DEFAULT_WORLD_ID). */
+  world: string;
 }
 
 export function readLaunchParams(search: string): LaunchParams {
@@ -22,5 +26,8 @@ export function readLaunchParams(search: string): LaunchParams {
     spike: p.get("spike") === "rapier" ? "rapier" : null,
     net: p.get("net") !== "0",
     quality: quality === "low" || quality === "medium" || quality === "high" ? quality : null,
+    world: /^[a-z0-9-]{1,32}$/.test(p.get("world") ?? "")
+      ? (p.get("world") as string)
+      : DEFAULT_WORLD_ID,
   };
 }

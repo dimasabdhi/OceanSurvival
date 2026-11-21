@@ -57,10 +57,3 @@ test("start → pointer lock → lock released → pause menu", async ({ page })
     .poll(() => page.evaluate(() => document.pointerLockElement?.id ?? null))
     .toBe("game-canvas");
 });
-
-test("connects to the dev server spike room", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByTestId("net-status")).toContainText("terhubung", { timeout: 15_000 });
-  // Other tabs may share the dev server room, so only require at least one player.
-  await expect(page.getByTestId("net-status")).toContainText(/[1-9]\d* pemain/);
-});

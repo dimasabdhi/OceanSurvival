@@ -24,7 +24,9 @@ Skala: Probabilitas (P) & Dampak (D) 1–5; Skor = P × D. ≥ 15 = kritis.
 | R17 | Kode world (join code) ditebak orang asing di internet | 2 | 3 | 6 | 8 char + password opsional + rate limit join gagal + kick/ban | Join tidak dikenal | Claude | 8, 16 |
 | R18 | Ukuran download Rapier compat (WASM base64): chunk 4,3 MB / 1,67 MB gzip | 3 | 2 | 6 | Lazy-load (sudah); evaluasi paket non-compat (.wasm terpisah) atau `-simd` di Phase 2–3 bila waktu load > budget | Load > 20 s cold | Claude | 2, 15 |
 | R19 | `StateView` belum dioptimalkan untuk dataset besar (peringatan docs resmi) → AOI debris/creature mahal | 3 | 3 | 9 | Benchmark Phase 4; alternatif `t.stream()` / pembagian region | Tick server > budget saat AOI aktif | Claude | 4, 10 |
-| R20 | Netcode bawaan Colyseus 0.18 masih baru; perilaku dengan Rapier + platform bergerak belum terbukti | 3 | 4 | 12 | Spike Phase 2 terfokus; ADR-0013 Proposed sampai lulus AC Phase 2 | Koreksi > 5 cm, bug framework | Claude | 2, 3 |
+| R20 | Netcode bawaan Colyseus 0.18 masih baru; perilaku dengan Rapier + platform bergerak belum terbukti | 2 | 4 | 8 | **Phase 2: 0 cm koreksi pada RTT 150 ms (platform statis); platform bergerak = Phase 3.** Spike Phase 2 terfokus; ADR-0013 Proposed sampai lulus AC Phase 2 | Koreksi > 5 cm, bug framework | Claude | 2, 3 |
+| R21 | Catatan pemain di file save tumbuh tanpa batas (setiap pemain yang pernah masuk) | 2 | 2 | 4 | Retensi/cleanup di Phase 8 (PostgreSQL); dev: hapus `data/saves` | File save > 1 MB | Claude | 8 |
+| R22 | Satu room per world hanya dijaga dalam satu proses (registry in-memory) | 2 | 4 | 8 | Lock PostgreSQL (advisory lock) di Phase 8 sebelum multi-proses/hosting | Lebih dari 1 proses server | Claude | 8, 16 |
 
 ## Risiko teratas saat ini
 1. **R1 / R20** — jitter rakit & netcode bawaan Colyseus → di-spike pertama kali di Phase 2–3.
@@ -36,3 +38,4 @@ Skala: Probabilitas (P) & Dampak (D) 1–5; Skor = P × D. ≥ 15 = kritis.
 |---|---|
 | 2026-11-21 | Register awal (Phase 0) |
 | 2026-11-21 | Phase 1: R2, R6 turun (spike lulus); R1 turun (ADR-0013); tambah R18–R20 |
+| 2026-11-21 | Phase 2: R20 turun (prediksi exact); tambah R21–R22 |

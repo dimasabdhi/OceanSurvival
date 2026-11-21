@@ -37,6 +37,18 @@ Semua yang datang dari client adalah **input tak dipercaya**, termasuk dari clie
 | T14 | Supply chain | Paket npm berbahaya | Versi exact + lockfile, pnpm build-script allowlist (`onlyBuiltDependencies`), `pnpm audit` per milestone, minimal dependency | 1 |
 | T15 | Room joining tak sah | Orang asing tebak kode world | Kode 8 char (alfabet 32 → 2^40), password opsional, rate limit join gagal (5/menit per IP), owner bisa kick/ban | 8 |
 
+## 3a. Status implementasi (Phase 2, 2026-11-21)
+| # | Status | Bukti |
+|---|---|---|
+| T1 Spoofing | ✅ token 32 byte, server simpan SHA-256, `timingSafeEqual`, trust-on-first-use | `apps/server/src/auth/PlayerAuth.ts`, test "wrong tokens" |
+| T2 Tampering movement | ✅ server-authoritative, `sanitize` input, kredit input per tick | test "at most one input per tick" (200 input sekaligus) |
+| T5 Payload jahat | ✅ zod strict (join, chat), `validate()` → 4002; nama pemain whitelist karakter | test 4002, test join options |
+| T6 DoS ringan | 🟡 rate limit chat + kick 4101; buffer input 64; `maxClients` 4. Batas koneksi per IP & `maxPayload` WS → Phase 16 (hosting) | test flood |
+| T10 XSS | ✅ nama/chat dirender Preact (escape), kontrol karakter ditolak | `protocol/world.ts` |
+| T11 Secret | ✅ `.env` git-ignored, config divalidasi zod | `apps/server/src/config.ts` |
+| T13 Eksposur dev | ✅ bind `127.0.0.1`; `/debug/metrics` hanya bila `DEBUG_ROUTES=1`, mati di production | `index.ts`, `config.ts` |
+| Integritas world | ✅ satu room per world (`WORLD_FULL`), sesi ganda ditutup 4100, save atomik | test "full world", "4100", FileWorldRepository tests |
+
 ## 4. Aturan implementasi
 1. Setiap handler message: `validate(zodSchema)` → cek state pemain (hidup, tidak downed bila perlu) → cek rate → cek jarak/izin → mutasi.
 2. Tidak ada `eval`, `new Function`, atau deserialisasi object arbitrer.

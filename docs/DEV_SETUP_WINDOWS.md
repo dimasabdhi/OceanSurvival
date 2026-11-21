@@ -50,15 +50,19 @@ Isi `.env` hanya untuk komputer Anda; file ini tidak masuk Git.
 ```powershell
 pnpm dev
 ```
-- Client: buka `http://localhost:5173` di Chrome atau Edge → klik **Klik untuk mulai**.
-- Kontrol (kamera debug Phase 1): WASD bergerak, mouse melihat, Space naik, C turun, Shift cepat, **Esc** jeda (menu kualitas grafik, waktu, kecepatan waktu, FOV, sensitivitas), **F3** sembunyikan/tampilkan overlay performa.
-- Pojok kanan atas: status server ("Server: terhubung · n pemain · ping") dan jam dunia.
-- Server: berjalan di `ws://127.0.0.1:2567`. Hentikan keduanya dengan `Ctrl + C`.
+- Client: buka `http://localhost:5173` di Chrome atau Edge → isi **Nama pemain** → **Gabung ke dunia**.
+- Kontrol: WASD jalan, mouse melihat, **Space** lompat (saat berenang: melompat keluar air ke dek), **Shift** lari, **Enter/T** chat, **Esc** jeda (kualitas grafik, FOV, sensitivitas, **Keluar ke menu**), **F3** overlay performa (termasuk ping & "koreksi prediksi").
+- Pojok kanan atas: status server ("Server: terhubung · n pemain · ping") dan jam dunia (diatur server).
+- Server: berjalan di `ws://127.0.0.1:2567`. Hentikan keduanya dengan `Ctrl + C` — server menyimpan dunia sebelum mati.
+- Simpanan dunia (dev): `data/saves/worlds/<world>.json`. Hapus folder `data/saves` untuk mereset semua dunia & identitas.
+
+**Main bersama di satu PC**: buka tab/jendela kedua (bisa Chrome + Edge). Setiap tab yang terbuka bersamaan otomatis menjadi pemain berbeda (profil 1, 2, …). Maksimal 4 pemain per dunia.
 
 Mode khusus (tambahkan di akhir alamat):
 | Alamat | Fungsi |
 |---|---|
-| `http://localhost:5173/?net=0` | Tanpa koneksi server |
+| `http://localhost:5173/?world=coba` | Masuk dunia lain bernama `coba` (huruf kecil, angka, `-`) |
+| `http://localhost:5173/?net=0` | Tanpa koneksi server (kamera terbang debug) |
 | `http://localhost:5173/?spike=rapier` | Uji fisika Rapier di browser (hasil harus "COCOK") |
 | `http://localhost:5173/?bench=ocean&seconds=60` | Benchmark laut 60 detik (hasil tampil di layar) |
 | `http://localhost:5173/?quality=low` | Paksa kualitas Rendah/Sedang/Tinggi (`low`/`medium`/`high`) |
@@ -79,6 +83,17 @@ Benchmark otomatis (membuka jendela Chrome ±3,5 menit; jangan pakai PC selama b
 pnpm bench:ocean
 ```
 Hasil disimpan di folder `bench-results/` (tidak masuk Git).
+
+Uji beban server dengan bot (butuh `pnpm dev` berjalan di terminal lain; default 4 bot × 10 menit di dunia `loadtest`):
+```powershell
+pnpm load-test
+```
+Versi singkat 2 menit dengan 8 bot:
+```powershell
+$env:BOTS=8; $env:DURATION_SECONDS=120; pnpm load-test
+```
+
+Merasakan internet lambat di LAN: isi `SIMULATED_LATENCY_MS=150` di `.env`, lalu jalankan ulang `pnpm dev`. Metrik server langsung: buka `http://127.0.0.1:2567/debug/metrics`.
 
 ## 7. Tes multiplayer di satu PC
 Buka 2–4 tab/jendela (bisa campur Chrome & Edge) ke `http://localhost:5173` dan join world yang sama.

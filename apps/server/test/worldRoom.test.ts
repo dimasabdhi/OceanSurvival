@@ -5,6 +5,7 @@ import {
   DEFAULT_WORLD_ID,
   MoveMode,
   TEST_PLATFORM_TOP_Y,
+  WORLD_ROOM_NAME,
 } from "@oceansurvival/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { WorldRepository } from "../src/persistence/WorldRepository";
@@ -15,7 +16,7 @@ describe("WorldRoom", () => {
   let repository: WorldRepository;
 
   beforeAll(async () => {
-    ({ colyseus, repository } = await bootTestServer({ RECONNECT_GRACE_SECONDS: "1" }));
+    ({ colyseus, repository } = await bootTestServer({ RECONNECT_GRACE_SECONDS: "1" }, 2571));
   });
   afterAll(async () => {
     await colyseus.shutdown();
@@ -95,6 +96,16 @@ describe("WorldRoom", () => {
     const maxDistance = ((elapsedTicks + 6) / 60) * 3.6;
     expect(moved).toBeGreaterThan(0.5);
     expect(moved).toBeLessThanOrEqual(maxDistance);
+  });
+
+  it("a full world rejects the 5th player instead of opening a second room", async () => {
+    const room = await createWorld(colyseus);
+    for (let i = 0; i < 4; i++) await colyseus.connectTo(room, joinOptions(newPlayer()));
+    await expect(
+      colyseus.sdk.joinOrCreate(WORLD_ROOM_NAME, joinOptions(newPlayer())),
+    ).rejects.toThrow(/WORLD_FULL/);
+    await expect(createWorld(colyseus)).rejects.toThrow(/WORLD_FULL/);
+    expect(room.clients.length).toBe(4);
   });
 
   it("invalid message payload disconnects the client (4002)", async () => {

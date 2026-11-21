@@ -9,6 +9,21 @@ Status: **Draft v1 (Phase 0)** · ADR: [0004](adr/0004-colyseus-018-authoritativ
 > - Dokumentasi `StateView` memperingatkan bahwa fitur ini belum dioptimalkan untuk dataset besar. AOI debris/creature (§8.2) harus di-benchmark di Phase 4; alternatif resmi: *Streaming Collections* (`t.stream()`).
 > - Simulasi latensi untuk test: `server.simulateLatency(ms)` / env `COLYSEUS_LATENCY` (bawaan Colyseus) menggantikan rencana `tools/netsim`.
 
+> **Implementasi Phase 2 (2026-11-21)** — detail yang berlaku sekarang (menggantikan rencana di bawah bila berbeda):
+> | Topik | Implementasi |
+> |---|---|
+> | Movement | `stepCharacter` di `packages/shared/src/movement/characterMovement.ts`: Rapier `KinematicCharacterController` sebagai query murni terhadap geometri **statis**; antar-pemain tidak bertabrakan (interaction groups). Hasil di-`Math.fround` agar state float32 server = client bit-per-bit. |
+> | Prediction | Client `predict.reconciler(self, { input, fields: CHARACTER_STATE_FIELDS, step: stepCharacter, smoothMs: 65, snap: 3 })`; remote `attachAll("players")` lerp 100 ms (+ yaw/pitch `angle: true`). Hasil uji RTT 150 ms: **0 cm koreksi** (lihat PHASE_02_REPORT). |
+> | Konsumsi input server | Kredit per pemain: +1 per tick, maks 4; tiap input memakai 1 → laju berkelanjutan = 60 input/s (anti speed-hack), burst kecil untuk jitter. |
+> | Client macet | Tanpa input > 15 tick (250 ms: tab di background, baru join) → server menjalankan langkah idle (gravitasi/renang tetap jalan) **tanpa** memajukan ack, sehingga jitter normal tidak memengaruhi determinisme. |
+> | Satu room per world | Registry proses: `onCreate` menolak world yang sudah punya room (`WORLD_FULL`) — mencegah Colyseus membuat room kedua saat world penuh (bug ditemukan di E2E). Multi-proses: lock DB di Phase 8. |
+> | Identitas | `playerId` (16 char) + token 32 byte di localStorage; server simpan SHA-256 (trust-on-first-use). Tiap **tab** browser yang terbuka bersamaan memegang Web Lock profil berbeda (profil 1, 2, …) sehingga tab kedua = pemain kedua, bukan menendang tab pertama. |
+> | Sesi ganda | Pemain yang sama join lagi (perangkat lain) → sesi lama ditutup `4100`. |
+> | Rate limit | `chat.send`: burst 3, 1/s; 50 pelanggaran → tutup `4101`. Payload salah → `4002` (bawaan `validate`). |
+> | Reconnect | Grace `RECONNECT_GRACE_SECONDS` (30 s). Catatan SDK: auto-reconnect tidak dicoba bila koneksi < 5 s (`minUptime`). |
+> | World time | `state.timeOrigin + room.clock.serverNow()/1000` di client; disimpan saat save. |
+> | Pesan aktif Phase 2 | input (`room.input()`), `chat.send`; server → `chat`, `server.notice`. |
+
 ## 1. Prinsip
 1. **Server authoritative** untuk semua state bersama dan posisi pemain.
 2. Client mengirim **input & intent**, bukan hasil.

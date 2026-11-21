@@ -3,8 +3,9 @@
 Project: **OceanSurvival** (nama kerja). Game survival-lautan 3D first-person, co-op 2–4 pemain, berjalan di browser desktop (Chrome/Edge). Terinspirasi *jenis* gameplay Raft, tetapi seluruh identitas, aset, nama, cerita, dan kode **orisinal**.
 
 ## Status saat ini
-- Phase 0 ✅ · Phase 1 ✅ ([laporan](docs/reports/PHASE_01_REPORT.md)) · **Phase 2 (multiplayer foundation) sedang dikerjakan**.
-- Kode `Spike*` (SpikeRoom, protocol/spike, physics-spike, DebugFloaters) adalah **spike Phase 1**, bukan fitur final — diganti di Phase 2.
+- Phase 0 ✅ · Phase 1 ✅ · **Phase 2 (multiplayer foundation) selesai, menunggu review owner** — [laporan](docs/reports/PHASE_02_REPORT.md). Phase 3 hanya setelah owner menyetujui.
+- PLACEHOLDER aktif: `TEST_LEVEL` (dek uji statis, diganti rakit Phase 3), `PlayerViews` (kapsul), `DebugFloaters`, `physics-spike` (regresi determinisme Rapier, dipertahankan).
+- Movement: satu-satunya step = `stepCharacter` (shared). Jangan menambah logika gerak di client/server di luar fungsi itu; hasil wajib `Math.fround`. Test `tests/integration/prediction.test.ts` harus tetap 0 koreksi.
 - Git: remote `origin` = github.com/dimasabdhi/OceanSurvival, branch `main`. Setelah setiap phase/perubahan terverifikasi: commit lalu push.
 - Sumber kebenaran urutan kerja: [docs/ROADMAP.md](docs/ROADMAP.md) dan [docs/ACCEPTANCE_CRITERIA.md](docs/ACCEPTANCE_CRITERIA.md).
 - Keputusan arsitektur: [docs/adr/](docs/adr/README.md). Jangan melanggar ADR berstatus *Accepted*; usulkan ADR baru bila perlu berubah.
@@ -64,7 +65,9 @@ Versi persis: `package.json` tiap package + `pnpm-workspace.yaml` (overrides `@c
 
 ## Perintah
 `pnpm install` · `pnpm dev` (client :5173 + server :2567) · `pnpm verify` (lint+typecheck+test+assets, gate wajib) · `pnpm test` · `pnpm test:e2e` (Chrome+Edge terpasang, tanpa download browser) · `pnpm bench:ocean` (headed, GPU asli; `BENCH_SECONDS`, `BENCH_RUNS`, `BENCH_QUALITY`) · `pnpm build` · `pnpm format`
-- Mode URL client: `?net=0` (tanpa server), `?spike=rapier`, `?bench=ocean&seconds=60`, `?quality=low|medium|high`. Dev-only: `window.__OS_DEBUG__ = { game, store }`.
+- `pnpm load-test` (bot, butuh `pnpm dev` jalan; `BOTS`, `DURATION_SECONDS`, `WORLD`). Metrik: `GET /debug/metrics`.
+- Mode URL client: `?world=<id>`, `?net=0` (tanpa server), `?spike=rapier`, `?bench=ocean&seconds=60`, `?quality=low|medium|high`. Dev-only: `window.__OS_DEBUG__ = { game, store }`. E2E memakai `?world=e2e` dan wajib `leaveWorld()` sebelum menutup halaman (grace reconnect 30 s).
+- Test server memakai port berbeda per file (`bootTestServer(env, port)`) karena Vitest menjalankan file paralel.
 - Golden hash Rapier (`GOLDEN_RAPIER_HASH_600`) harus sama di Node & browser; bila upgrade Rapier mengubahnya → review ADR-0003.
 
 ## Peta dokumentasi

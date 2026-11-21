@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { boot, type ColyseusTestServer } from "@colyseus/testing";
+import { ColyseusTestServer } from "@colyseus/testing";
 import { DEFAULT_WORLD_ID, WORLD_ROOM_NAME } from "@oceansurvival/shared";
 import appConfig from "../src/app.config";
 import { loadConfig } from "../src/config";
@@ -25,6 +25,7 @@ export function joinOptions(p: TestPlayer, worldId = DEFAULT_WORLD_ID) {
 
 export async function bootTestServer(
   env: Record<string, string> = {},
+  port = 2568,
 ): Promise<{ colyseus: ColyseusTestServer; repository: WorldRepository }> {
   const repository = new MemoryWorldRepository();
   const config = loadConfig({
@@ -34,7 +35,11 @@ export async function bootTestServer(
     ...env,
   });
   configureServices(config, repository);
-  const colyseus = await boot(appConfig);
+  // Not `boot(appConfig, port)`: @colyseus/testing 0.18.6 ignores `port` when given a
+  // Server instance (always 2568, all interfaces), so parallel test files collide.
+  // Equivalent steps with an explicit port, bound to localhost only:
+  await appConfig.listen(port, "127.0.0.1");
+  const colyseus = new ColyseusTestServer(appConfig);
   return { colyseus, repository };
 }
 

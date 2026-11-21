@@ -182,6 +182,15 @@ importers:
       '@biomejs/biome':
         specifier: 2.6.7
         version: 2.6.7
+      '@colyseus/sdk':
+        specifier: 0.18.10
+        version: 0.18.10(@colyseus/core@0.18.28)(typescript@7.0.2)(zod@4.6.7)
+      '@colyseus/testing':
+        specifier: 0.18.6
+        version: 0.18.6(@colyseus/core@0.18.28)(@colyseus/sdk@0.18.10(@colyseus/core@0.18.28)(typescript@7.0.2)(zod@4.6.7))(@colyseus/tools@0.18.11(@colyseus/core@0.18.28)(@colyseus/ws-transport@0.18.5))
+      '@oceansurvival/shared':
+        specifier: workspace:*
+        version: link:packages/shared
       '@playwright/test':
         specifier: 1.65.1
         version: 1.65.1

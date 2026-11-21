@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { Game } from "./app/Game";
 import { readLaunchParams } from "./app/params";
+import { acquireProfile, loadPlayerName } from "./net/identity";
 import { loadQualityPreset } from "./render/quality";
 import { App } from "./ui/App";
 import { t } from "./ui/i18n";
@@ -33,6 +34,8 @@ if (!hasWebGL2()) {
   const params = readLaunchParams(window.location.search);
   store.quality.value = params.quality ?? loadQualityPreset();
   store.connection.value = { status: params.net ? "offline" : "disabled", players: 0, rttMs: null };
+  store.profile.value = await acquireProfile();
+  store.playerName.value = loadPlayerName(store.profile.value);
   const serverUrl = import.meta.env.VITE_SERVER_URL ?? "http://localhost:2567";
   const game = new Game(gameRoot, params, serverUrl);
   render(<App game={game} />, uiRoot);

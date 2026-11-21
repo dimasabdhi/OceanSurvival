@@ -63,3 +63,30 @@ export const bench = signal<{ running: boolean; result: BenchResult | null }>({
   result: null,
 });
 export const rapierSpike = signal<RapierSpikeResult | null>(null);
+
+// --- Phase 2: world session -------------------------------------------------
+
+export type SessionPhase = "menu" | "joining" | "in-world" | "lost";
+export type LostReason =
+  | "duplicate"
+  | "abuse"
+  | "server"
+  | "network"
+  | "error"
+  | "shutdown"
+  | "full";
+
+export const session = signal<{ phase: SessionPhase; reason: LostReason | null; detail: string }>({
+  phase: "menu",
+  reason: null,
+  detail: "",
+});
+export const playerName = signal("");
+export const chatOpen = signal(false);
+export const chatLog = signal<{ id: number; from: string; text: string; at: number }[]>([]);
+/** Network telemetry, refreshed ~2 Hz: RTT and reconcile corrections (cm). */
+export const netStats = signal<{ rttMs: number; corrAvgCm: number; corrMaxCm: number } | null>(
+  null,
+);
+/** Player profile of this tab (see net/identity.ts acquireProfile). */
+export const profile = signal(1);

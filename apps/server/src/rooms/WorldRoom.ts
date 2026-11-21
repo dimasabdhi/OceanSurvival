@@ -56,6 +56,16 @@ const RATE_LIMITS = {
   "chat.send": { capacity: 3, perSecond: 1 },
 };
 
+/**
+ * Worlds that currently have a room in this process. A world must never run in two
+ * rooms at once (players would be split and both rooms would overwrite the same save).
+ * When a world room is full, Colyseus joinOrCreate would otherwise create a second
+ * room; onCreate refuses instead. Multi-process safety comes in Phase 8 (DB lock).
+ */
+const activeWorlds = new Set<string>();
+/** Error message the client maps to "world is full". */
+export const WORLD_FULL_ERROR = "WORLD_FULL";
+
 const idleCommand = { moveX: 0, moveZ: 0, yaw: 0, pitch: 0, buttons: 0 };
 
 interface AuthData {
@@ -104,9 +114,14 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
   private readonly tickStats = new TickStats();
   private spawnIndex = 0;
   private metricsKey = "";
+  private claimedWorldId: string | null = null;
 
   override async onCreate(options: { worldId?: string }): Promise<void> {
     const worldId = WorldJoinOptions.shape.worldId.parse(options.worldId);
+    // Synchronous check-and-claim (no await before it), so concurrent creates cannot race.
+    if (activeWorlds.has(worldId)) throw new Error(WORLD_FULL_ERROR);
+    activeWorlds.add(worldId);
+    this.claimedWorldId = worldId;
     const { repository, config } = services();
     await initPhysics();
     this.movement = new MovementWorld(TEST_LEVEL.boxes);
@@ -206,9 +221,10 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
   }
 
   override async onDispose(): Promise<void> {
-    await this.save("dispose");
+    if (this.state.worldId) await this.save("dispose");
+    if (this.claimedWorldId) activeWorlds.delete(this.claimedWorldId);
     metricsRegistry.delete(this.metricsKey);
-    this.movement.dispose();
+    this.movement?.dispose();
   }
 
   // ---------------------------------------------------------------------------

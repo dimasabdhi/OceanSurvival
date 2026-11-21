@@ -1,8 +1,15 @@
-import { CALM_WAVES, DAY_LENGTH_SECONDS } from "@oceansurvival/shared";
+import {
+  CALM_WAVES,
+  CHARACTER,
+  DAY_LENGTH_SECONDS,
+  PlayerName,
+  type PlayerState,
+} from "@oceansurvival/shared";
 import { effect } from "@preact/signals";
 import {
   ACESFilmicToneMapping,
   DirectionalLight,
+  Euler,
   HemisphereLight,
   PerspectiveCamera,
   Scene,
@@ -11,7 +18,10 @@ import {
   WebGLRenderer,
 } from "three";
 import { OceanBench } from "../bench/OceanBench";
+import { loadIdentity, savePlayerName } from "../net/identity";
+import { type ConnectionEvent, type Pose, WorldConnection } from "../net/WorldConnection";
 import { FlyCamera } from "../player/FlyCamera";
+import { InputSampler } from "../player/InputSampler";
 import { DayNightCycle, phaseToClock } from "../render/DayNightCycle";
 import { DebugFloaters } from "../render/DebugFloaters";
 import { OceanRenderer } from "../render/ocean/OceanRenderer";
@@ -19,12 +29,17 @@ import { PerfMonitor } from "../render/PerfMonitor";
 import { QUALITY_PRESETS, type QualityPreset, saveQualityPreset } from "../render/quality";
 import { SkyDome } from "../render/SkyDome";
 import * as store from "../ui/store";
+import { PlayerViews } from "../world/PlayerViews";
+import { TestLevelView } from "../world/TestLevelView";
 import type { LaunchParams } from "./params";
 
+const MAX_CHAT_LINES = 8;
+
 /**
- * Phase 1 client shell: renderer, ocean, sky, day/night, debug camera, perf overlay,
- * optional dev-server connection, benchmark and Rapier spike modes.
- * Gameplay systems arrive from Phase 2 onward.
+ * Client shell. Two modes:
+ * - online (default): join the world room, first-person player with server-authoritative
+ *   movement + client prediction, other players interpolated (Phase 2);
+ * - offline (`?net=0`) / benchmark: debug fly camera over the ocean (Phase 1 tools).
  */
 export class Game {
   readonly renderer: WebGLRenderer;
@@ -35,15 +50,23 @@ export class Game {
   private readonly sky = new SkyDome();
   private readonly ocean: OceanRenderer;
   private readonly floaters = new DebugFloaters(CALM_WAVES);
+  private readonly level = new TestLevelView();
+  private readonly playerViews: PlayerViews;
   private readonly sun = new DirectionalLight();
   private readonly hemi = new HemisphereLight();
   private readonly flyCamera: FlyCamera;
+  private readonly sampler = new InputSampler();
   private readonly perfMonitor: PerfMonitor;
   private readonly bench: OceanBench | null;
-  // TODO(Phase 2): WorldConnection (prediction + interpolation) replaces the Phase 1 spike connection.
-  private worldTime: number;
+  private connection: WorldConnection | null = null;
+  private localWorldTime: number;
+  private lastNetStats = 0;
+  private chatId = 0;
   private rafHandle = 0;
   private readonly disposers: (() => void)[] = [];
+  private readonly pose: Pose = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0, mode: 0 };
+  private readonly look = new Euler(0, 0, 0, "YXZ");
+  private readonly alive = new Set<string>();
 
   constructor(
     private readonly container: HTMLElement,
@@ -67,15 +90,16 @@ export class Game {
       innerSpacing: preset.oceanInnerSpacing,
       radius: preset.viewDistance,
     });
+    this.playerViews = new PlayerViews(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.floaters.mesh, this.sun, this.hemi);
-    this.scene.add(this.sun.target);
+    this.scene.add(this.sun.target, this.level.group);
 
     this.flyCamera = new FlyCamera(this.camera);
     this.perfMonitor = new PerfMonitor(this.renderer, (s) => {
       store.perf.value = s;
     });
     this.bench = params.bench ? new OceanBench(params.benchSeconds, store.quality.value) : null;
-    this.worldTime = this.bench
+    this.localWorldTime = this.bench
       ? this.bench.worldTime
       : DAY_LENGTH_SECONDS * store.timeOfDayPhase.value;
     this.timer.connect(document);
@@ -94,14 +118,23 @@ export class Game {
         this.camera.updateProjectionMatrix();
       }),
       effect(() => {
-        this.flyCamera.sensitivity = 0.0022 * store.sensitivity.value;
+        const s = 0.0022 * store.sensitivity.value;
+        this.flyCamera.sensitivity = s;
+        this.sampler.sensitivity = s;
+      }),
+      effect(() => {
+        // Movement keys are ignored while typing in chat or when the mouse is free.
+        this.sampler.setActive(store.pointerLocked.value && !store.chatOpen.value);
       }),
     );
   }
 
+  get online(): boolean {
+    return this.params.net && !this.bench;
+  }
+
   start(): void {
     if (this.params.spike === "rapier") {
-      // Lazy-load: Rapier (WASM, ~2 MB) is not needed until gameplay physics (Phase 2+).
       void import("../spike/rapierSpike").then((m) => m.runRapierSpike());
     }
     if (this.bench) {
@@ -109,6 +142,65 @@ export class Game {
       store.started.value = true;
     }
     this.rafHandle = requestAnimationFrame(this.loop);
+  }
+
+  /** Online: join the world (called from a click, so pointer lock is allowed). */
+  join(name: string): void {
+    const parsed = PlayerName.safeParse(name);
+    if (!parsed.success) {
+      store.session.value = {
+        phase: "menu",
+        reason: "error",
+        detail: "Nama tidak valid (2–24 huruf/angka).",
+      };
+      return;
+    }
+    savePlayerName(parsed.data, store.profile.value);
+    store.playerName.value = parsed.data;
+    this.requestPointerLock();
+    store.session.value = { phase: "joining", reason: null, detail: "" };
+    store.connection.value = { status: "connecting", players: 0, rttMs: null };
+    WorldConnection.connect(
+      this.serverUrl,
+      this.params.world,
+      loadIdentity(store.profile.value),
+      parsed.data,
+      this.onNetEvent,
+    )
+      .then((conn) => {
+        this.connection = conn;
+        store.session.value = { phase: "in-world", reason: null, detail: "" };
+      })
+      .catch((err: unknown) => {
+        console.warn("[net] join failed:", err);
+        store.connection.value = { status: "offline", players: 0, rttMs: null };
+        const message = err instanceof Error ? err.message : String(err);
+        store.session.value = {
+          phase: "lost",
+          reason: message.includes("WORLD_FULL") ? "full" : "error",
+          detail: message,
+        };
+        document.exitPointerLock();
+      });
+  }
+
+  /** Leave the world and return to the menu. */
+  async leaveWorld(): Promise<void> {
+    const conn = this.connection;
+    this.connection = null;
+    if (conn) {
+      await conn.leave().catch(() => undefined);
+      conn.dispose();
+    }
+    this.playerViews.prune(new Set());
+    store.session.value = { phase: "menu", reason: null, detail: "" };
+    store.connection.value = { status: "offline", players: 0, rttMs: null };
+    store.netStats.value = null;
+  }
+
+  sendChat(text: string): void {
+    const trimmed = text.trim();
+    if (trimmed) this.connection?.sendChat(trimmed.slice(0, 200));
   }
 
   /** User asked to start/resume: request pointer lock (needs a user gesture). */
@@ -122,9 +214,9 @@ export class Game {
     store.started.value = true;
   }
 
-  /** Jump the day/night cycle to a phase (0 = sunrise). */
+  /** Offline only: jump the day/night cycle to a phase (0 = sunrise). */
   setTimeOfDay(phase: number): void {
-    this.worldTime = DAY_LENGTH_SECONDS * phase;
+    this.localWorldTime = DAY_LENGTH_SECONDS * phase;
   }
 
   dispose(): void {
@@ -133,8 +225,12 @@ export class Game {
     window.removeEventListener("resize", this.resize);
     document.removeEventListener("pointerlockchange", this.onPointerLockChange);
     window.removeEventListener("keydown", this.onKeyDown);
-
+    void this.connection?.leave();
+    this.connection?.dispose();
     this.flyCamera.dispose();
+    this.sampler.dispose();
+    this.playerViews.dispose();
+    this.level.dispose();
     this.ocean.dispose();
     this.sky.dispose();
     this.floaters.dispose();
@@ -143,20 +239,63 @@ export class Game {
     this.renderer.domElement.remove();
   }
 
+  private readonly onNetEvent = (e: ConnectionEvent) => {
+    switch (e.type) {
+      case "status":
+        store.connection.value = { ...store.connection.value, status: e.status };
+        break;
+      case "closed": {
+        if (e.reason === "left") break;
+        this.connection?.dispose();
+        this.connection = null;
+        this.playerViews.prune(new Set());
+        store.connection.value = { status: "offline", players: 0, rttMs: null };
+        const wasShutdown = store.session.value.reason === "shutdown";
+        store.session.value = {
+          phase: "lost",
+          reason: wasShutdown ? "shutdown" : e.reason,
+          detail: `kode ${e.code}`,
+        };
+        document.exitPointerLock();
+        break;
+      }
+      case "chat": {
+        const line = { id: ++this.chatId, ...e.message, at: Date.now() };
+        store.chatLog.value = [...store.chatLog.value, line].slice(-MAX_CHAT_LINES);
+        break;
+      }
+      case "notice":
+        if (e.notice.kind === "shutdown") {
+          store.session.value = { ...store.session.value, reason: "shutdown" };
+        }
+        break;
+    }
+  };
+
   private readonly loop = (timestamp: number) => {
     this.rafHandle = requestAnimationFrame(this.loop);
     this.timer.update(timestamp);
     // Clamp huge deltas (tab switch, breakpoint) so the sim never jumps.
     const dt = Math.min(this.timer.getDelta(), 0.25);
 
+    const conn = this.connection;
+    let worldTime: number;
     if (this.bench) {
       this.bench.driveCamera(this.camera);
+      worldTime = this.localWorldTime;
+    } else if (conn) {
+      // Contract: tick → send loop → read (WorldConnection.frame does tick + sends).
+      conn.frame(timestamp, (out) => this.sampler.sample(out));
+      this.updatePlayers(conn);
+      worldTime = conn.worldTime();
     } else {
-      this.worldTime += dt * store.timeSpeed.value;
-      this.flyCamera.update(dt);
+      if (this.online) this.orbitMenuCamera(timestamp);
+      else this.flyCamera.update(dt);
+      this.localWorldTime += dt * store.timeSpeed.value;
+      worldTime = this.localWorldTime;
     }
 
-    this.cycle.update(this.worldTime);
+    this.cycle.update(worldTime);
     this.sun.position.copy(this.cycle.lightDirection).multiplyScalar(100).add(this.camera.position);
     this.sun.target.position.copy(this.camera.position);
     this.sun.color.copy(this.cycle.current.light);
@@ -166,8 +305,8 @@ export class Game {
     this.hemi.intensity = this.cycle.current.ambientIntensity;
 
     this.sky.update(this.camera.position, this.cycle);
-    this.ocean.update(this.worldTime, this.camera, this.cycle);
-    this.floaters.update(this.worldTime, this.camera.position);
+    this.ocean.update(worldTime, this.camera, this.cycle);
+    this.floaters.update(worldTime, this.camera.position);
 
     this.renderer.render(this.scene, this.camera);
     this.perfMonitor.frame(dt * 1000);
@@ -180,6 +319,54 @@ export class Game {
     }
     store.clock.value = phaseToClock(this.cycle.phase);
   };
+
+  /** Camera = predicted local player; remotes = interpolated capsules. */
+  private updatePlayers(conn: WorldConnection): void {
+    const local = conn.localPose(this.pose);
+    if (local) {
+      this.camera.position.set(local.x, local.y + CHARACTER.eyeOffset, local.z);
+      // Look direction comes straight from the mouse (no network delay).
+      this.look.set(this.sampler.pitch, this.sampler.yaw, 0);
+      this.camera.quaternion.setFromEuler(this.look);
+    }
+    this.alive.clear();
+    for (const [sessionId, player] of conn.room.state.players) {
+      if (sessionId === conn.sessionId) continue;
+      this.alive.add(sessionId);
+      const p = player as PlayerState;
+      this.playerViews.update(
+        sessionId,
+        p.name,
+        p.playerId,
+        conn.readPose(p, this.pose),
+        p.connected,
+      );
+    }
+    this.playerViews.prune(this.alive);
+
+    const now = performance.now();
+    if (now - this.lastNetStats > 500) {
+      this.lastNetStats = now;
+      const c = conn.takeCorrectionStats();
+      store.netStats.value = {
+        rttMs: Math.round(conn.rttMs()),
+        corrAvgCm: Math.round(c.avg * 1000) / 10,
+        corrMaxCm: Math.round(c.max * 1000) / 10,
+      };
+      store.connection.value = {
+        ...store.connection.value,
+        players: conn.room.state.players.size,
+        rttMs: conn.rttMs(),
+      };
+    }
+  }
+
+  /** Slow orbit around the deck while in the menu. */
+  private orbitMenuCamera(timestamp: number): void {
+    const a = timestamp * 0.00005;
+    this.camera.position.set(Math.cos(a) * 14, 4, Math.sin(a) * 14);
+    this.camera.lookAt(0, 1, 0);
+  }
 
   private applyQuality(preset: QualityPreset): void {
     const q = QUALITY_PRESETS[preset];
@@ -205,13 +392,22 @@ export class Game {
   private readonly onPointerLockChange = () => {
     const locked = document.pointerLockElement === this.renderer.domElement;
     store.pointerLocked.value = locked;
-    this.flyCamera.setEnabled(locked);
+    if (!locked) store.chatOpen.value = false;
+    this.flyCamera.setEnabled(locked && !this.online);
   };
 
   private readonly onKeyDown = (e: KeyboardEvent) => {
     if (e.code === "F3") {
       e.preventDefault();
       store.showPerf.value = !store.showPerf.value;
+    } else if (
+      (e.code === "Enter" || e.code === "KeyT") &&
+      this.connection &&
+      store.pointerLocked.value &&
+      !store.chatOpen.value
+    ) {
+      e.preventDefault();
+      store.chatOpen.value = true;
     }
   };
 }

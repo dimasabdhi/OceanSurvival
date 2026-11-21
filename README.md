@@ -14,9 +14,10 @@ Terinspirasi oleh *jenis* gameplay seperti Raft, tetapi **seluruh identitas, dun
 |---|---|
 | Phase 0 — Arsitektur & dokumentasi | ✅ Selesai |
 | Phase 1 — Fondasi repo & tech spikes | ✅ Selesai ([laporan](docs/reports/PHASE_01_REPORT.md)) |
-| Phase 2 — Multiplayer foundation | 🚧 Sedang dikerjakan |
+| Phase 2 — Multiplayer foundation | ✅ Selesai, menunggu review owner ([laporan](docs/reports/PHASE_02_REPORT.md)) |
+| Phase 3 — First-person controller & rakit awal | ⏳ Belum dimulai |
 
-Yang bisa dijalankan sekarang: laut 3D dengan siklus siang–malam, kamera terbang (debug), overlay performa, koneksi ke server pengembangan, benchmark, dan spike teknis. **Belum ada gameplay.** Roadmap lengkap: [docs/ROADMAP.md](docs/ROADMAP.md).
+Yang bisa dijalankan sekarang: 1–4 pemain bergabung ke dunia yang sama, berjalan/lari/lompat/berenang di dek uji di tengah laut (gerak dikendalikan server dengan prediksi di client), saling melihat, chat, dan posisi tersimpan. **Belum ada gameplay survival** (rakit, hook, inventory: Phase 3–6). Roadmap lengkap: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Teknologi
 
