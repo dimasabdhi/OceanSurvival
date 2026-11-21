@@ -114,6 +114,7 @@ export class DebrisSystem {
   private despawn(worldTime: number): void {
     const [rx, rz] = raftWorldPosition(this.state.raft, worldTime, this.raftPos);
     for (const [id, d] of this.state.debris) {
+      if (d.hookId !== "") continue; // on a hook: owned by the HookSystem
       const old = worldTime - d.spawnTime > DEBRIS.lifetimeSeconds;
       const behind = distanceAheadOfRaft(d.worldX, d.worldZ, rx, rz) < -DEBRIS.despawnBehind;
       if (old || behind) this.state.debris.delete(id);

@@ -17,6 +17,9 @@ import {
   distance3,
   eyePosition,
   findInteractable,
+  HookCancel,
+  HookReel,
+  HookThrow,
   INTERACT_SERVER_RANGE,
   InteractUse,
   initPhysics,
@@ -50,6 +53,7 @@ import {
 } from "../persistence/WorldRepository";
 import { services } from "../services";
 import { type AoiViewer, DebrisSystem } from "../sim/DebrisSystem";
+import { HookSystem } from "../sim/HookSystem";
 
 /** Inputs a player may "bank" after a gap (burst catch-up); sustained rate stays 1/tick. */
 const MAX_INPUT_CREDIT = 4;
@@ -66,6 +70,9 @@ const MAX_VIOLATIONS = 50;
 const RATE_LIMITS = {
   "chat.send": { capacity: 3, perSecond: 1 },
   "interact.use": { capacity: 5, perSecond: 10 },
+  "hook.throw": { capacity: 2, perSecond: 2 },
+  "hook.reel": { capacity: 10, perSecond: 10 },
+  "hook.cancel": { capacity: 5, perSecond: 5 },
 };
 
 /**
@@ -144,10 +151,27 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       }
       if (target.kind === "lantern") this.state.raft.lanternOn = !this.state.raft.lanternOn;
     }),
+    "hook.throw": validate(HookThrow, (client, message) => {
+      if (!this.rateLimit(client, "hook.throw")) return;
+      const player = this.state.players.get(client.sessionId);
+      // Phase 5: every player holds the Grapple Line (hotbar/equipment arrive in Phase 6).
+      if (!player?.connected || player.mode === MoveMode.Diving) return;
+      const result = this.hooks.throw(client.sessionId, player, message.power, this.worldTime());
+      if (result !== "ok") client.send("hook.reject", { reason: result });
+    }),
+    "hook.reel": validate(HookReel, (client, message) => {
+      if (!this.rateLimit(client, "hook.reel")) return;
+      this.hooks.setReel(client.sessionId, message.active);
+    }),
+    "hook.cancel": validate(HookCancel, (client) => {
+      if (!this.rateLimit(client, "hook.cancel")) return;
+      this.hooks.cancel(client.sessionId, this.worldTime());
+    }),
   };
 
   private movement!: MovementWorld;
   private debris!: DebrisSystem;
+  private hooks!: HookSystem;
   private tick = 0;
   private readonly viewers: AoiViewer[] = [];
   private readonly sessions = new Map<string, Session>();
@@ -184,6 +208,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     // Debris is not saved (DATABASE_DESIGN §2): regenerate an already-populated ocean.
     this.debris = new DebrisSystem(this.state, worldId);
     this.debris.prefill(this.worldTime());
+    this.hooks = new HookSystem(this.state);
     this.setMetadata({ worldId });
 
     this.setFixedTimestep((ctx) => this.step(ctx.dt), SIM_TICK_RATE);
@@ -229,9 +254,15 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     } else {
       this.placeAtSpawn(player);
     }
+    for (const [item, count] of Object.entries(this.records[auth.playerId]?.carried ?? {})) {
+      if (count > 0) player.carried.set(item, count);
+    }
+
     this.state.players.set(client.sessionId, player);
     this.clientByPlayer.set(auth.playerId, client);
     const view = new StateView();
+    // The owner sees their own private fields (e.g. the bag).
+    view.add(player);
     client.view = view;
     this.sessions.set(client.sessionId, {
       view,
@@ -328,6 +359,9 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     let connected = 0;
     for (const p of this.state.players.values()) if (p.connected) connected++;
     this.debris.update(worldTime, dt, connected);
+    for (const r of this.hooks.update(worldTime, dt)) {
+      this.clients.getById(r.sessionId)?.send("hook.retrieved", { items: r.items });
+    }
     if (++this.tick % AOI_EVERY_N_TICKS !== 0) return;
     this.viewers.length = 0;
     for (const [sessionId, session] of this.sessions) {
@@ -366,6 +400,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       }
     }
     if (session) this.movement.removeCharacter(session.body);
+    this.hooks.removeOwner(sessionId, this.worldTime());
     this.sessions.delete(sessionId);
     this.state.players.delete(sessionId);
   }
@@ -375,6 +410,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       playerId: player.playerId,
       name: player.name,
       position: { x: player.x, y: player.y, z: player.z, yaw: player.yaw },
+      carried: Object.fromEntries(player.carried.entries()),
       lastSeenAt: new Date().toISOString(),
     };
   }
@@ -425,6 +461,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       roomId: this.roomId,
       players: this.state.players.size,
       debris: this.state.debris.size,
+      hooks: this.state.hooks.size,
       tick: this.tickStats.summary(),
       clients,
       memoryMB: Math.round(process.memoryUsage().rss / 1e6),

@@ -38,6 +38,15 @@ export function App({ game }: { game: Game }) {
       )}
       {phase === "in-world" && store.underwater.value && <div class="underwater" />}
       {phase === "in-world" && locked && <div class="crosshair" />}
+      {phase === "in-world" && locked && store.hookCharge.value !== null && (
+        <div
+          class="charge"
+          data-testid="hook-charge"
+          style={{ "--charge": `${Math.round(store.hookCharge.value * 360)}deg` }}
+        />
+      )}
+      {phase === "in-world" && <BagPanel />}
+      {phase === "in-world" && <Pickups />}
       {phase === "in-world" && locked && store.interactPrompt.value && (
         <div class="prompt" data-testid="interact-prompt">
           <kbd>{t("interact.key")}</kbd> {store.interactPrompt.value.action}
@@ -104,6 +113,45 @@ function PerfPanel() {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function itemName(item: string): string {
+  const key = `item.${item}` as TextKey;
+  const text = t(key);
+  return text ?? item;
+}
+
+function BagPanel() {
+  const bag = store.bag.value;
+  if (bag.length === 0) return null;
+  return (
+    <div class="panel bag" data-testid="bag">
+      <b>{t("bag.title")}</b>
+      {bag.map((b) => (
+        <div key={b.item}>
+          {itemName(b.item)} × {b.count}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Pickups() {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, []);
+  const recent = store.pickups.value.filter((p) => now - p.at < 2500);
+  return (
+    <div class="pickups" data-testid="pickups">
+      {recent.map((p) => (
+        <div key={p.id} class="pickup">
+          +1 {itemName(p.item)}
+        </div>
+      ))}
     </div>
   );
 }

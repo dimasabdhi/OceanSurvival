@@ -71,8 +71,8 @@ Boot/Loading ─► Main Menu ─┬─► Create World ─► Lobby ─► Load
 | Sprint | Shift |
 | Menyelam (saat berenang) | C (bukan Ctrl: Ctrl+W menutup tab browser). Jongkok di darat: Deferred |
 | Interaksi | E (tahan untuk revive/aksi lama) |
-| Aksi utama (lempar hook, serang, place) | Klik kiri |
-| Aksi sekunder (menu build, aim) | Klik kanan |
+| Aksi utama (lempar hook: tahan = isi tenaga, lepas = lempar; tahan lagi = tarik; serang/place nanti) | Klik kiri |
+| Aksi sekunder (lepas/batal kait; menu build nanti) | Klik kanan |
 | Rotasi piece | R |
 | Hotbar | 1–8, scroll wheel |
 | Inventory / crafting | Tab |

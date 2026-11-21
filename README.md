@@ -17,9 +17,10 @@ Terinspirasi oleh *jenis* gameplay seperti Raft, tetapi **seluruh identitas, dun
 | Phase 2 — Multiplayer foundation | ✅ Selesai ([laporan](docs/reports/PHASE_02_REPORT.md)) |
 | Phase 3 — First-person controller & rakit awal | ✅ Selesai ([laporan](docs/reports/PHASE_03_REPORT.md)) |
 | Phase 4 — Laut & sumber daya hanyut | ✅ Selesai ([laporan](docs/reports/PHASE_04_REPORT.md)) |
-| Phase 5 — Hook (alat kait) | 🚧 Sedang dikerjakan |
+| Phase 5 — Hook (alat kait) | ✅ Selesai, menunggu review owner ([laporan](docs/reports/PHASE_05_REPORT.md)) |
+| Phase 6 — Inventory & crafting (Vertical Slice) | ⏳ Belum dimulai |
 
-Yang bisa dijalankan sekarang: 1–4 pemain di rakit 2×2 yang hanyut di laut — berjalan, lari, lompat, jatuh ke laut dan terbawa arus, berenang, menyelam, melompat naik kembali, menyalakan lentera, melihat debris (kayu, plastik, rumput laut, tong, kelapa) hanyut melewati rakit, saling melihat, chat; posisi & rakit tersimpan. Gerak dikendalikan server dengan prediksi di client. **Belum ada gameplay survival** (rakit, hook, inventory: Phase 3–6). Roadmap lengkap: [docs/ROADMAP.md](docs/ROADMAP.md).
+Yang bisa dijalankan sekarang: 1–4 pemain di rakit 2×2 yang hanyut di laut — berjalan, lari, lompat, jatuh ke laut dan terbawa arus, berenang, menyelam, melompat naik kembali, menyalakan lentera, mengait debris yang hanyut (kayu, plastik, rumput laut, tong, kelapa) dengan alat kait dan mengumpulkannya, saling melihat, chat; posisi & rakit tersimpan. Gerak dikendalikan server dengan prediksi di client. **Belum ada gameplay survival** (rakit, hook, inventory: Phase 3–6). Roadmap lengkap: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Teknologi
 

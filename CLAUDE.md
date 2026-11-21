@@ -3,10 +3,11 @@
 Project: **OceanSurvival** (nama kerja). Game survival-lautan 3D first-person, co-op 2–4 pemain, berjalan di browser desktop (Chrome/Edge). Terinspirasi *jenis* gameplay Raft, tetapi seluruh identitas, aset, nama, cerita, dan kode **orisinal**.
 
 ## Status saat ini
-- Phase 0 ✅ · Phase 1 ✅ · Phase 4 ✅ ([laporan](docs/reports/PHASE_04_REPORT.md)) · **Phase 5 (hook) sedang dikerjakan**.
-- PLACEHOLDER aktif: `RaftView` (rakit prosedural; layout tetap `START_RAFT_CELLS` sampai building Phase 7), `PlayerViews` (kapsul), `DebrisRenderer` (bentuk debris prosedural), `physics-spike` (regresi determinisme Rapier, dipertahankan).
+- Phase 0 ✅ · Phase 1 ✅ · Phase 4 ✅ · **Phase 5 (hook) selesai, menunggu review owner** — [laporan](docs/reports/PHASE_05_REPORT.md). Phase 6 hanya setelah owner menyetujui.
+- PLACEHOLDER aktif: `Viewmodel` (gulungan tali + kait di tangan), `HookRenderer` (kait & tali), `RaftView` (rakit prosedural; layout tetap `START_RAFT_CELLS` sampai building Phase 7), `PlayerViews` (kapsul), `DebrisRenderer` (bentuk debris prosedural), `physics-spike` (regresi determinisme Rapier, dipertahankan).
 - **Frame rakit (ADR-0014)**: semua simulasi pemain dalam koordinat relatif-rakit; air mengalir `WATER_FLOW`; posisi rakit di dunia hanya untuk render (`raftWorldPosition`). Goyangan rakit/ombak = visual saja (`world/Presentation.ts`, `RaftSway.ts`). Jangan memasukkan waktu/posisi dunia ke `stepCharacter`.
 - **Debris**: statis di frame dunia (`worldX/worldZ/spawnTime`), tidak pernah diupdate per tick; client merender `world − raftWorld(t)`. Server: `sim/DebrisSystem.ts` (spawn/despawn/AOI via `StateView`, koleksi `debris` bertanda `.view()`). Tidak disimpan di save (di-prefill saat room dibuat).
+- **Hook**: `packages/shared/src/hook.ts` (lintasan analitik + batas tali) & `apps/server/src/sim/HookSystem.ts` (satu kait per pemain, tangkap/tarik/batal). `PlayerState.carried` = **tas sementara Phase 5** (privat via `StateView`, ikut save sebagai field opsional) — diganti inventory Phase 6. Debris yang tertangkap: `Debris.hookId`; DebrisSystem tidak men-despawn-nya.
 - Save format v2 (`parseSnapshot` + migrasi v1→v2). Perubahan format berikutnya: tambah `migrateV2toV3` + fixture test.
 - Movement: satu-satunya step = `stepCharacter` (shared). Jangan menambah logika gerak di client/server di luar fungsi itu; hasil wajib `Math.fround`. Test `tests/integration/prediction.test.ts` harus tetap 0 koreksi.
 - Git: remote `origin` = github.com/dimasabdhi/OceanSurvival, branch `main`. Setelah setiap phase/perubahan terverifikasi: commit lalu push.

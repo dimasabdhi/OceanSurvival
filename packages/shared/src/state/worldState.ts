@@ -20,6 +20,11 @@ export const PlayerState = schema(
     mode: t.uint8().default(0),
     /** False while the client is inside its reconnection grace period. */
     connected: t.boolean().default(true),
+    /**
+     * PHASE 5 TEMPORARY "bag": item id → count collected with the hook. Private to the
+     * owner (StateView). Replaced by the real inventory in Phase 6.
+     */
+    carried: t.map("uint16").view(),
   },
   "PlayerState",
 );
@@ -58,10 +63,38 @@ export const Debris = schema(
     spawnTime: t.float64(),
     /** Visual yaw (radians). */
     yaw: t.float32(),
+    /** Owner session id of the hook holding this piece ("" = floating free). */
+    hookId: t.string().default(""),
   },
   "Debris",
 );
 export type Debris = SchemaType<typeof Debris>;
+
+/**
+ * A thrown hook (GAMEPLAY_SYSTEMS §C), keyed by its owner's session id (one per player).
+ * While Flying, clients evaluate hookFlightPosition(launch…, worldTime − launchTime);
+ * once in the water, x/y/z are server positions (interpolated by clients).
+ */
+export const HookState = schema(
+  {
+    phase: t.uint8(),
+    x: t.float32().default(0),
+    y: t.float32().default(0),
+    z: t.float32().default(0),
+    launchX: t.float32(),
+    launchY: t.float32(),
+    launchZ: t.float32(),
+    launchVX: t.float32(),
+    launchVY: t.float32(),
+    launchVZ: t.float32(),
+    /** World time (s) of the throw. */
+    launchTime: t.float64(),
+    /** Ids of the debris pieces caught on this hook (max HOOK.maxCaught). */
+    caught: t.array("string"),
+  },
+  "HookState",
+);
+export type HookState = SchemaType<typeof HookState>;
 
 export const WorldState = schema(
   {
@@ -73,6 +106,7 @@ export const WorldState = schema(
     raft: t.ref(RaftState),
     /** Per-client filtered by distance (StateView AOI, DEBRIS.aoiRadius). Keyed by id. */
     debris: t.map(Debris).view(),
+    hooks: t.map(HookState),
   },
   "WorldState",
 );

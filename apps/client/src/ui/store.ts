@@ -98,3 +98,12 @@ export const interactPrompt = signal<{ targetId: string; action: string } | null
 export const headBob = signal(true);
 export const raftSway = signal(true);
 export const underwater = signal(false);
+
+// --- Phase 5: hook ------------------------------------------------------------
+
+/** Throw charge 0..1 while the button is held, else null. */
+export const hookCharge = signal<number | null>(null);
+/** Temporary bag (Phase 5): item id → count, sorted for display. */
+export const bag = signal<{ item: string; count: number }[]>([]);
+/** "+1 Kayu apung" notifications. */
+export const pickups = signal<{ id: number; item: string; at: number }[]>([]);

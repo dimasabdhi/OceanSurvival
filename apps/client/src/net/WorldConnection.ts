@@ -4,6 +4,7 @@ import {
   type CharacterBody,
   type ChatBroadcast,
   CloseCodes,
+  type HookState,
   initPhysics,
   MovementWorld,
   type PlayerInput,
@@ -30,7 +31,9 @@ export type ConnectionEvent =
   | { type: "closed"; code: number; reason: "duplicate" | "abuse" | "server" | "network" | "left" }
   | { type: "chat"; message: ChatBroadcast }
   | { type: "notice"; notice: ServerNotice }
-  | { type: "interact-reject"; targetId: string; reason: string };
+  | { type: "interact-reject"; targetId: string; reason: string }
+  | { type: "hook-retrieved"; items: string[] }
+  | { type: "hook-reject"; reason: string };
 
 export interface Pose {
   x: number;
@@ -61,6 +64,8 @@ export class WorldConnection {
     this.predict = Predict.get(room, { mode: "lerp", delay: REMOTE_INTERPOLATION_DELAY_MS });
     this.predict.attachAll("players", { mode: "lerp", fields: ["x", "y", "z"] });
     this.predict.attachAll("players", { mode: "lerp", fields: ["yaw", "pitch"], angle: true });
+    // Hooks in the water move per server tick: interpolate them like remote players.
+    this.predict.attachAll("hooks", { mode: "lerp", fields: ["x", "z"] });
     this.input = room.input<PlayerInput>();
     if (this.input.tickRate === undefined) {
       throw new Error("Server did not advertise a fixed tick rate (setFixedTimestep)");
@@ -90,6 +95,12 @@ export class WorldConnection {
     room.onMessage("server.notice", (n: ServerNotice) => onEvent({ type: "notice", notice: n }));
     room.onMessage("interact.reject", (m: { targetId: string; reason: string }) =>
       onEvent({ type: "interact-reject", ...m }),
+    );
+    room.onMessage("hook.retrieved", (m: { items: string[] }) =>
+      onEvent({ type: "hook-retrieved", items: m.items }),
+    );
+    room.onMessage("hook.reject", (m: { reason: string }) =>
+      onEvent({ type: "hook-reject", reason: m.reason }),
     );
   }
 
@@ -173,6 +184,32 @@ export class WorldConnection {
 
   get lanternOn(): boolean {
     return this.room.state.raft?.lanternOn ?? false;
+  }
+
+  /** Smoothed in-water hook position (raft frame) — flight is computed analytically. */
+  hookValue(hook: HookState, field: "x" | "z"): number {
+    return this.predict.value(hook, field);
+  }
+
+  /** The local player's temporary bag (Phase 5): item id → count. */
+  carried(): Map<string, number> {
+    const out = new Map<string, number>();
+    this.self?.carried?.forEach((count, item) => {
+      out.set(item, count);
+    });
+    return out;
+  }
+
+  sendHookThrow(power: number): void {
+    this.room.send("hook.throw", { power });
+  }
+
+  sendHookReel(active: boolean): void {
+    this.room.send("hook.reel", { active });
+  }
+
+  sendHookCancel(): void {
+    this.room.send("hook.cancel", {});
   }
 
   sendInteract(targetId: string): void {

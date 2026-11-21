@@ -156,10 +156,10 @@ describe("WorldRoom", () => {
     }
     await waitFor(() => far.state.debris?.size === 0, 5000);
     expect(near.state.debris.size).toBeGreaterThan(20);
-    // A replicated piece carries world position + spawn time only (no per-tick movement).
+    // A replicated piece carries world position + spawn time (+ hook owner); no per-tick movement.
     const sample = [...near.state.debris.values()][0];
     expect(Object.keys(sample?.toJSON() ?? {}).sort()).toEqual(
-      ["kind", "spawnTime", "worldX", "worldZ", "yaw"].sort(),
+      ["hookId", "kind", "spawnTime", "worldX", "worldZ", "yaw"].sort(),
     );
   });
 

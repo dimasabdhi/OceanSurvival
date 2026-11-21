@@ -51,7 +51,7 @@ Isi `.env` hanya untuk komputer Anda; file ini tidak masuk Git.
 pnpm dev
 ```
 - Client: buka `http://localhost:5173` di Chrome atau Edge → isi **Nama pemain** → **Gabung ke dunia**.
-- Kontrol: WASD jalan, mouse melihat, **Space** lompat (di air: naik / melompat keluar air ke rakit), **C** menyelam, **Shift** lari, **E** interaksi (lentera), **Enter/T** chat, **Esc** jeda (kualitas grafik, FOV, sensitivitas, goyangan kepala & rakit, **Keluar ke menu**), **F3** overlay performa (termasuk ping & "koreksi prediksi").
+- Kontrol: WASD jalan, mouse melihat, **klik kiri tahan** isi tenaga lalu lepas untuk melempar kait, tahan lagi untuk menarik, **klik kanan** lepas kait, **Space** lompat (di air: naik / melompat keluar air ke rakit), **C** menyelam, **Shift** lari, **E** interaksi (lentera), **Enter/T** chat, **Esc** jeda (kualitas grafik, FOV, sensitivitas, goyangan kepala & rakit, **Keluar ke menu**), **F3** overlay performa (termasuk ping & "koreksi prediksi").
 - Pojok kanan atas: status server ("Server: terhubung · n pemain · ping") dan jam dunia (diatur server).
 - Server: berjalan di `ws://127.0.0.1:2567`. Hentikan keduanya dengan `Ctrl + C` — server menyimpan dunia sebelum mati.
 - Simpanan dunia (dev): `data/saves/worlds/<world>.json`. Hapus folder `data/saves` untuk mereset semua dunia & identitas.

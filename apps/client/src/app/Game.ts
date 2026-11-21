@@ -1,6 +1,11 @@
 import {
   CALM_WAVES,
   DAY_LENGTH_SECONDS,
+  eyePosition,
+  type HookLaunch,
+  HookPhase,
+  hookFlightPosition,
+  hookLaunch,
   LANTERN_ID,
   PlayerName,
   type PlayerState,
@@ -26,8 +31,10 @@ import { OceanBench } from "../bench/OceanBench";
 import { loadIdentity, savePlayerName } from "../net/identity";
 import { type ConnectionEvent, type Pose, WorldConnection } from "../net/WorldConnection";
 import { FlyCamera } from "../player/FlyCamera";
+import { HookController } from "../player/HookController";
 import { InputSampler } from "../player/InputSampler";
 import { aimedInteractable } from "../player/InteractionAim";
+import { Viewmodel } from "../player/Viewmodel";
 import { DayNightCycle, phaseToClock } from "../render/DayNightCycle";
 import { OceanRenderer } from "../render/ocean/OceanRenderer";
 import { PerfMonitor } from "../render/PerfMonitor";
@@ -35,6 +42,7 @@ import { QUALITY_PRESETS, type QualityPreset, saveQualityPreset } from "../rende
 import { SkyDome } from "../render/SkyDome";
 import * as store from "../ui/store";
 import { DebrisRenderer } from "../world/DebrisRenderer";
+import { HookRenderer } from "../world/HookRenderer";
 import { LocalDebrisField } from "../world/localDebris";
 import { PlayerViews } from "../world/PlayerViews";
 import { Presentation } from "../world/Presentation";
@@ -69,6 +77,17 @@ export class Game {
   private readonly raftWorld: [number, number] = [0, 0];
   private readonly renderPos = new Vector3();
   private readonly lookQuat = new Quaternion();
+  private readonly hookRenderer = new HookRenderer();
+  private readonly viewmodel: Viewmodel;
+  private readonly hookController: HookController;
+  /** Local "ghost" of a throw until the server's hook arrives (instant feedback). */
+  private pendingThrow: { launch: HookLaunch; worldTime: number; since: number } | null = null;
+  private readonly hookPositions = new Map<string, Vector3>();
+  private readonly remoteHands = new Map<string, Vector3>();
+  private readonly handPos = new Vector3();
+  private readonly flight: [number, number, number] = [0, 0, 0];
+  private lastBagUpdate = 0;
+  private pickupId = 0;
   private readonly playerViews: PlayerViews;
   private readonly sun = new DirectionalLight();
   private readonly hemi = new HemisphereLight();
@@ -96,6 +115,8 @@ export class Game {
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.0;
     this.renderer.domElement.id = "game-canvas";
+    // Right mouse = cancel hook; never open the browser's context menu over the game.
+    this.renderer.domElement.addEventListener("contextmenu", (e) => e.preventDefault());
     container.appendChild(this.renderer.domElement);
 
     const preset = QUALITY_PRESETS[store.quality.value];
@@ -110,7 +131,19 @@ export class Game {
     });
     this.playerViews = new PlayerViews(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.debrisRenderer.group, this.sun, this.hemi);
-    this.scene.add(this.sun.target, this.raft.group);
+    this.scene.add(this.sun.target, this.raft.group, this.hookRenderer.group);
+    // The camera is in the scene so its children (the first-person viewmodel) render.
+    this.scene.add(this.camera);
+    this.viewmodel = new Viewmodel(this.camera);
+    this.hookController = new HookController({
+      hasHook: () => !!this.connection?.room.state.hooks.has(this.connection.sessionId),
+      throwHook: (power) => this.throwHook(power),
+      reel: (active) => this.connection?.sendHookReel(active),
+      cancel: () => {
+        this.pendingThrow = null;
+        this.connection?.sendHookCancel();
+      },
+    });
     this.raft.group.matrixAutoUpdate = false;
     this.scene.fog = this.fog;
 
@@ -258,6 +291,9 @@ export class Game {
     this.sampler.dispose();
     this.playerViews.dispose();
     this.raft.dispose();
+    this.hookController.dispose();
+    this.hookRenderer.dispose();
+    this.viewmodel.dispose();
     this.ocean.dispose();
     this.sky.dispose();
     this.debrisRenderer.dispose();
@@ -291,6 +327,15 @@ export class Game {
         store.chatLog.value = [...store.chatLog.value, line].slice(-MAX_CHAT_LINES);
         break;
       }
+      case "hook-retrieved": {
+        const now = Date.now();
+        const lines = e.items.map((item) => ({ id: ++this.pickupId, item, at: now }));
+        store.pickups.value = [...store.pickups.value, ...lines].slice(-6);
+        break;
+      }
+      case "hook-reject":
+        this.pendingThrow = null;
+        break;
       case "interact-reject":
         // The server disagreed (moved out of range / blocked); the prompt will update.
         break;
@@ -326,6 +371,7 @@ export class Game {
       this.sway.update(worldTime, this.raftWorld[0], this.raftWorld[1]);
       this.raft.setLantern(conn.lanternOn);
       this.updatePlayers(conn, dt, worldTime);
+      this.updateHooks(conn, worldTime);
     } else {
       if (this.online) this.orbitMenuCamera(timestamp);
       else this.flyCamera.update(dt);
@@ -367,7 +413,16 @@ export class Game {
     this.sky.update(this.camera.position, this.cycle);
     this.ocean.update(worldTime, this.camera, this.cycle, rx, rz, isUnder);
     const debris = conn ? conn.room.state.debris.values() : this.localDebris.update(worldTime);
-    this.debrisRenderer.update(debris, worldTime, rx, rz, this.camera.position);
+    this.debrisRenderer.update(debris, worldTime, rx, rz, this.camera.position, this.hookPositions);
+    const playing = !!conn && store.pointerLocked.value && !store.chatOpen.value;
+    this.hookController.setActive(playing);
+    const charge = this.hookController.charge();
+    if (charge !== store.hookCharge.value) store.hookCharge.value = charge;
+    this.viewmodel.update(
+      !!conn?.room.state.hooks.has(conn.sessionId) || this.pendingThrow !== null,
+      charge,
+      !!conn && !isUnder,
+    );
 
     this.renderer.render(this.scene, this.camera);
     this.perfMonitor.frame(dt * 1000);
@@ -424,6 +479,17 @@ export class Game {
       const p = player as PlayerState;
       const pose = conn.readPose(p, this.pose);
       this.presentation.bodyPosition(pose, worldTime, rx, rz, this.renderPos);
+      // Remote right hand (rope start): body center + eye height + 0.3 m to the right.
+      let hand = this.remoteHands.get(sessionId);
+      if (!hand) {
+        hand = new Vector3();
+        this.remoteHands.set(sessionId, hand);
+      }
+      hand.set(
+        this.renderPos.x + Math.cos(pose.yaw) * 0.3,
+        this.renderPos.y + 0.45,
+        this.renderPos.z - Math.sin(pose.yaw) * 0.3,
+      );
       pose.x = this.renderPos.x;
       pose.y = this.renderPos.y;
       pose.z = this.renderPos.z;
@@ -446,6 +512,86 @@ export class Game {
         rttMs: conn.rttMs(),
       };
     }
+  }
+
+  private throwHook(power: number): void {
+    const conn = this.connection;
+    const local = conn?.localPose(this.pose);
+    if (!conn || !local || conn.room.state.hooks.has(conn.sessionId)) return;
+    conn.sendHookThrow(power);
+    // Same launch the server will compute (predicted pose + current look).
+    this.pendingThrow = {
+      launch: hookLaunch(eyePosition(local), this.sampler.yaw, this.sampler.pitch, power),
+      worldTime: conn.worldTime(),
+      since: performance.now(),
+    };
+  }
+
+  /** Hooks + ropes for everyone; also the positions caught debris hangs from. */
+  private updateHooks(conn: WorldConnection, worldTime: number): void {
+    const [rx, rz] = this.raftWorld;
+    this.hookRenderer.beginFrame();
+    this.hookPositions.clear();
+    const self = conn.sessionId;
+    for (const [owner, hook] of conn.room.state.hooks) {
+      const pos = this.hookVector(owner);
+      if (hook.phase === HookPhase.Flying) {
+        hookFlightPosition(
+          {
+            x: hook.launchX,
+            y: hook.launchY,
+            z: hook.launchZ,
+            vx: hook.launchVX,
+            vy: hook.launchVY,
+            vz: hook.launchVZ,
+          },
+          worldTime - hook.launchTime,
+          this.flight,
+        );
+        pos.set(this.flight[0], this.flight[1], this.flight[2]);
+      } else {
+        pos.x = conn.hookValue(hook, "x");
+        pos.z = conn.hookValue(hook, "z");
+        pos.y = this.presentation.waveHeight(pos.x, pos.z, worldTime, rx, rz);
+      }
+      const hand =
+        owner === self ? this.viewmodel.handWorld(this.handPos) : this.remoteHands.get(owner);
+      if (!hand) continue;
+      this.hookPositions.set(owner, pos);
+      this.hookRenderer.set(owner, pos, hand, hook.phase !== HookPhase.Flying);
+      if (owner === self) this.pendingThrow = null;
+    }
+    // Instant local feedback until the authoritative hook shows up (≤ 1 RTT).
+    const ghost = this.pendingThrow;
+    if (ghost && performance.now() - ghost.since < 1000) {
+      hookFlightPosition(ghost.launch, worldTime - ghost.worldTime, this.flight);
+      const pos = this.hookVector("local-ghost");
+      pos.set(this.flight[0], Math.max(this.flight[1], 0), this.flight[2]);
+      this.hookRenderer.set("local-ghost", pos, this.viewmodel.handWorld(this.handPos), false);
+    } else {
+      this.pendingThrow = null;
+    }
+    this.hookRenderer.endFrame();
+
+    const now = performance.now();
+    if (now - this.lastBagUpdate > 250) {
+      this.lastBagUpdate = now;
+      const bag = [...conn.carried().entries()]
+        .filter(([, n]) => n > 0)
+        .map(([item, count]) => ({ item, count }))
+        .sort((a, b) => a.item.localeCompare(b.item));
+      if (JSON.stringify(bag) !== JSON.stringify(store.bag.value)) store.bag.value = bag;
+    }
+  }
+
+  private readonly hookVectors = new Map<string, Vector3>();
+  private hookVector(id: string): Vector3 {
+    let v = this.hookVectors.get(id);
+    if (!v) {
+      v = new Vector3();
+      this.hookVectors.set(id, v);
+    }
+    return v;
   }
 
   /** Benchmark "full4p": three other players standing on the raft + lantern on. */

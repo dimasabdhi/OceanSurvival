@@ -1,10 +1,10 @@
 {
   "app.title": "OceanSurvival",
-  "app.devBuild": "Build pengembangan — Phase 3 (rakit & kontrol)",
+  "app.devBuild": "Build pengembangan — Phase 5 (alat kait)",
   "boot.webgl2Missing.title": "WebGL 2 tidak tersedia",
   "boot.webgl2Missing.body": "Game ini membutuhkan WebGL 2. Gunakan Chrome atau Edge terbaru dan aktifkan akselerasi hardware (Settings → System → Use graphics acceleration).",
   "start.clickToPlay": "Klik untuk mulai",
-  "start.controls": "WASD jalan · Mouse melihat · Space lompat/naik · C menyelam · Shift lari · E interaksi · Enter/T chat · Esc jeda · F3 performa",
+  "start.controls": "WASD jalan · Mouse melihat · Klik kiri tahan: lempar/tarik kait · Klik kanan: lepas kait · Space lompat · C menyelam · Shift lari · E interaksi · Enter chat · Esc jeda",
   "pause.title": "Jeda",
   "pause.resume": "Lanjutkan",
   "pause.quality": "Kualitas grafik",
@@ -52,5 +52,11 @@
   "lost.full": "Dunia ini sedang penuh (maksimal 4 pemain). Coba lagi nanti.",
   "pause.headBob": "Goyangan kepala saat berjalan",
   "pause.raftSway": "Goyangan rakit oleh ombak",
-  "interact.key": "E"
+  "interact.key": "E",
+  "bag.title": "Tas (sementara)",
+  "item.driftwood": "Kayu apung",
+  "item.flotsam_plastic": "Plastik",
+  "item.seagrass": "Rumput laut",
+  "item.barrel": "Tong",
+  "item.coconut": "Kelapa"
 }

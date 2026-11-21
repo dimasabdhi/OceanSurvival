@@ -1,4 +1,5 @@
 export * from "./constants";
+export * from "./hook";
 export * from "./interaction";
 export * from "./math/prng";
 export * from "./movement/characterMovement";

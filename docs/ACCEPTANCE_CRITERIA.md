@@ -54,10 +54,10 @@ Status: **Draft v1 (Phase 0)**. Kriteria phase yang jauh (≥ 9) akan diperinci 
 - [x] Debris di luar 120 m tidak dikirim ke client (StateView asli, integration test).
 - [x] Siklus siang–malam 24 menit tanpa artefak (test kontinuitas 4.000 titik; menemukan & memperbaiki loncatan cahaya matahari→bulan); `?bench=full4p` ≥ 60 FPS (164,7 FPS, vsync).
 
-## Phase 5 — Hook gameplay
-- [ ] Lempar dengan charge, jarak maks 25 m, tarik, ambil debris (maks 3), item masuk inventory sementara (tanpa UI penuh).
-- [ ] Dua pemain menarget debris yang sama: hanya satu yang mendapat (test).
-- [ ] Rope & hook terlihat konsisten bagi semua pemain.
+## Phase 5 — Hook gameplay (bukti: [PHASE_05_REPORT](reports/PHASE_05_REPORT.md))
+- [x] Lempar dengan charge, jarak maks 25 m, tarik, ambil debris (maks 3), item masuk inventory sementara (tas privat; unit + integration + E2E mouse asli Chrome/Edge).
+- [x] Dua pemain menarget debris yang sama: hanya satu yang mendapat (integration test).
+- [x] Rope & hook terlihat konsisten bagi semua pemain: lintasan terbang analitik dari parameter lemparan yang sama (server & semua client), posisi di air diinterpolasi; uji visual 2 tab: owner.
 
 ## Phase 6 — Inventory & basic crafting → Vertical Slice v0.1
 - [ ] Inventory 20 + hotbar 8: move/split/merge/swap/drop/pickup, tooltip, drag & drop.

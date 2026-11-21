@@ -19,6 +19,8 @@ export const PlayerRecord = z.object({
   playerId: z.string(),
   name: z.string(),
   position: SavedPosition.nullable(),
+  /** Phase 5 temporary bag (item id → count); optional, absent in older saves. */
+  carried: z.record(z.string(), z.number().int().nonnegative()).optional(),
   lastSeenAt: z.iso.datetime(),
 });
 export type PlayerRecord = z.infer<typeof PlayerRecord>;

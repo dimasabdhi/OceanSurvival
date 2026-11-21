@@ -26,6 +26,8 @@ export interface DebrisLike {
   worldZ: number;
   spawnTime: number;
   yaw: number;
+  /** Owner session id of the hook carrying it ("" or undefined = floating free). */
+  hookId?: string;
 }
 
 interface KindVisual {
@@ -50,6 +52,8 @@ export class DebrisRenderer {
   private readonly scale = new Vector3();
   private readonly up = new Vector3(0, 1, 0);
   private readonly normal = new Vector3();
+  /** Per-hook counter for spreading caught pieces. */
+  private readonly onHook = new Map<string, number>();
 
   constructor() {
     this.group.name = "Debris";
@@ -84,11 +88,30 @@ export class DebrisRenderer {
     raftX: number,
     raftZ: number,
     camera: Vector3,
+    /** Render positions of hooks by owner id: caught pieces hang on their hook. */
+    hookPositions?: ReadonlyMap<string, Vector3>,
   ): void {
     for (const v of this.kinds.values()) v.count = 0;
+    this.onHook.clear();
     for (const d of items) {
       const visual = this.kinds.get(d.kind);
       if (!visual || visual.count >= CAPACITY) continue;
+      const hookPos = d.hookId ? hookPositions?.get(d.hookId) : undefined;
+      if (hookPos) {
+        const i = this.onHook.get(d.hookId as string) ?? 0;
+        this.onHook.set(d.hookId as string, i + 1);
+        this.spin.setFromAxisAngle(this.up, d.yaw);
+        this.pos.set(
+          hookPos.x + (i - 1) * 0.35,
+          hookPos.y + visual.float,
+          hookPos.z + 0.25 * (i % 2),
+        );
+        this.scale.setScalar(1);
+        this.matrix.compose(this.pos, this.spin, this.scale);
+        visual.mesh.setMatrixAt(visual.count, this.matrix);
+        visual.count++;
+        continue;
+      }
       const lx = d.worldX - raftX;
       const lz = d.worldZ - raftZ;
       const viewDist = Math.hypot(lx - camera.x, lz - camera.z);

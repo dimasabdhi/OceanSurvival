@@ -23,6 +23,7 @@ Status: **Draft v1 (Phase 0)** · ADR: [0004](adr/0004-colyseus-018-authoritativ
 > | Reconnect | Grace `RECONNECT_GRACE_SECONDS` (30 s). Catatan SDK: auto-reconnect tidak dicoba bila koneksi < 5 s (`minUptime`). |
 > | World time | `state.timeOrigin + room.clock.serverNow()/1000` di client; disimpan saat save. |
 > | Debris (Phase 4) | `state.debris` (`t.map(Debris).view()`): posisi dunia + waktu spawn saja; client menghitung posisi & ombak sendiri → bandwidth stabil ±8 kbps/pemain dengan 57 debris. AOI 120 m via `StateView` (diuji dengan StateView asli). |
+> | Hook (Phase 5) | `state.hooks` (per sessionId): parameter lemparan + waktu → semua client menghitung lintasan terbang sendiri (mulus, tanpa update per tick); di air x/z diinterpolasi lerp. Pemilik melihat "kait bayangan" lokal sampai kait server tiba (≤ 1 RTT). Pesan: `hook.throw {power}`, `hook.reel {active}`, `hook.cancel {}`; server → `hook.retrieved {items}`, `hook.reject {reason}`. |
 > | Pesan aktif Phase 2 | input (`room.input()`), `chat.send`; server → `chat`, `server.notice`. |
 
 ## 1. Prinsip
