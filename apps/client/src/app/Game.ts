@@ -11,7 +11,6 @@ import {
   WebGLRenderer,
 } from "three";
 import { OceanBench } from "../bench/OceanBench";
-import { SpikeConnection } from "../net/SpikeConnection";
 import { FlyCamera } from "../player/FlyCamera";
 import { DayNightCycle, phaseToClock } from "../render/DayNightCycle";
 import { DebugFloaters } from "../render/DebugFloaters";
@@ -41,7 +40,7 @@ export class Game {
   private readonly flyCamera: FlyCamera;
   private readonly perfMonitor: PerfMonitor;
   private readonly bench: OceanBench | null;
-  private net: SpikeConnection | null = null;
+  // TODO(Phase 2): WorldConnection (prediction + interpolation) replaces the Phase 1 spike connection.
   private worldTime: number;
   private rafHandle = 0;
   private readonly disposers: (() => void)[] = [];
@@ -101,10 +100,6 @@ export class Game {
   }
 
   start(): void {
-    if (this.params.net && !this.bench) {
-      this.net = new SpikeConnection(this.serverUrl);
-      void this.net.connect();
-    }
     if (this.params.spike === "rapier") {
       // Lazy-load: Rapier (WASM, ~2 MB) is not needed until gameplay physics (Phase 2+).
       void import("../spike/rapierSpike").then((m) => m.runRapierSpike());
@@ -138,7 +133,7 @@ export class Game {
     window.removeEventListener("resize", this.resize);
     document.removeEventListener("pointerlockchange", this.onPointerLockChange);
     window.removeEventListener("keydown", this.onKeyDown);
-    void this.net?.dispose();
+
     this.flyCamera.dispose();
     this.ocean.dispose();
     this.sky.dispose();
