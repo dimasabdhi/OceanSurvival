@@ -198,9 +198,9 @@ describe("WorldRoom", () => {
     await reconnected;
     await waitFor(() => room.state.players.get(client.sessionId)?.connected === true);
     const after = room.state.players.get(client.sessionId);
-    expect(after?.playerId).toBe(before.playerId);
-    expect(after?.x).toBe(before.x);
-    expect(after?.z).toBe(before.z);
+    expect(after?.playerId, "identity after reconnect").toBe(before.playerId);
+    expect(after?.x, `x after reconnect (mode ${after?.mode})`).toBe(before.x);
+    expect(after?.z, `z after reconnect (mode ${after?.mode})`).toBe(before.z);
   });
 
   it("a player who stays away past the grace period is removed and saved", async () => {

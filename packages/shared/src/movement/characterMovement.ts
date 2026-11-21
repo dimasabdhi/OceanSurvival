@@ -256,6 +256,12 @@ export function stepCharacter(
     desired.z += WATER_FLOW[1] * dt;
   }
   const grounded = world.move(body, s, desired, moved);
+  // Standing still on the ground: drop the sub-millimetre sideways push the controller
+  // produces at the seams between foundations (otherwise idle players creep ~2 µm/min).
+  if (grounded && len === 0 && !inWater && Math.hypot(moved.x, moved.z) < 1e-3) {
+    moved.x = 0;
+    moved.z = 0;
+  }
 
   s.x = Math.fround(s.x + moved.x);
   s.y = Math.fround(s.y + moved.y);

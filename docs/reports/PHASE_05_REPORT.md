@@ -29,7 +29,7 @@ Pemain sekarang memegang **alat kait (Grapple Line)**: tahan klik kiri untuk men
 ## 3. Hasil pengujian
 | Pemeriksaan | Hasil |
 |---|---|
-| `pnpm verify` | ✅ lint + typecheck + 72 test + aset |
+| `pnpm verify` | ✅ lint + typecheck + 73 test + aset; seluruh suite 6× berturut-turut tanpa gagal setelah perbaikan di §4 |
 | Test kait (integration, 6) | ✅ lempar → mendarat → hanyut; tangkap → tarik → tas privat; satu debris satu kait; tolak lempar kedua; batal melepas debris; tidak bisa lempar saat menyelam; putus > 30 m. Stabil 2× berturut-turut |
 | E2E Chrome & Edge | ✅ 12/12, termasuk kait dengan **mouse sungguhan** (tahan → cincin tenaga → lepas → mendarat → tahan → kembali) |
 | Uji beban 4 bot × 60 s | ✅ tick 0,039 ms, 9,3 kbps, 60 debris |
@@ -41,6 +41,8 @@ Pemain sekarang memegang **alat kait (Grapple Line)**: tahan klik kiri untuk men
 | Gulungan tali di tangan terlihat seperti batang oranye | Gulungan menghadap samping ke kamera | Diputar agar lingkarannya menghadap kamera |
 | Test daftar field debris gagal | Debris mendapat field baru `hookId` (disengaja) | Test diperbarui |
 | Test kait "dua pemain" gagal | Nama test "A"/"B" ditolak server (minimal 2 huruf) — validasi bekerja benar | Nama test diganti |
+| Test *reconnect* gagal **sekali** (dari ±20 run) | Penyelidikan menemukan pemain yang diam tepat di pertemuan papan rakit bergeser ±1,6 µm/menit (dorongan samping mesin tabrakan di tepi papan); posisi "sebelum/sesudah" bisa berbeda mikrometer | Diam di tanah tanpa input = geseran samping < 1 mm diabaikan (server & client sama, prediksi tetap 0 cm); test baru 60 s di 3 titik sambungan; pesan test reconnect diperjelas. Run asli tidak bisa direproduksi lagi (6× hijau) — dipantau |
+| **Kesalahan proses**: commit `2969777` di-push walau run verify-nya merah | Skrip commit saya tidak berhenti saat test gagal | Perbaikan di commit berikutnya; commit kini hanya dibuat bila `pnpm verify` lulus |
 
 ## 5. Cara Anda menguji (±10 menit)
 1. Hentikan `pnpm dev` lama (Ctrl + C), lalu:

@@ -76,6 +76,19 @@ describe("stepCharacter on the starting raft (raft frame, ADR-0014)", () => {
     expect(s.z).toBeCloseTo(-0.4, 4);
   });
 
+  it("does not creep when idle on the seam where four foundations meet", () => {
+    for (const [x, z] of [
+      [0, 0],
+      [0.2, 0.2],
+      [0, -0.6],
+    ] as const) {
+      const s = run(world, onDeck(x, z), repeat(idle, 3600)); // 60 s
+      expect(s.mode).toBe(MoveMode.Grounded);
+      expect(s.x).toBe(Math.fround(x));
+      expect(s.z).toBe(Math.fround(z));
+    }
+  });
+
   it("walks at walk speed and sprints faster", () => {
     const walk = run(world, onDeck(0, 1), repeat({ ...idle, moveZ: 1 }, 20));
     expect(1 - walk.z).toBeCloseTo((20 / 60) * CHARACTER.walkSpeed, 1);
