@@ -1,6 +1,6 @@
 # ADR-0013: Gunakan netcode bawaan Colyseus 0.18 untuk prediction & reconciliation
 
-- **Status**: Proposed — divalidasi di Phase 2 (spike Phase 1 sudah membuktikan sisi server)
+- **Status**: Accepted (disetujui owner 2026-11-21; bukti perilaku dengan Rapier & rakit di AC Phase 2–3)
 - **Tanggal**: 2026-11-21
 - **Terkait**: [ADR-0005](0005-server-authoritative-movement.md) (tetap berlaku), [ADR-0004](0004-colyseus-018-authoritative-server.md), [MULTIPLAYER_DESIGN §5](../MULTIPLAYER_DESIGN.md#5-movement-prediction--reconciliation-adr-0005)
 

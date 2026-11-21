@@ -22,15 +22,15 @@ Status: **Draft v1 (Phase 0)**. Kriteria phase yang jauh (≥ 9) akan diperinci 
 - [x] Tidak ada kode gameplay, tidak ada dependency terinstal.
 - [x] Owner menyetujui.
 
-## Phase 1 — Foundation & tech spikes (bukti: [PHASE_01_REPORT](reports/PHASE_01_REPORT.md))
+## Phase 1 — Foundation & tech spikes ✅ (disetujui owner 2026-11-21; bukti: [PHASE_01_REPORT](reports/PHASE_01_REPORT.md))
 - [x] `pnpm install` bersih di Windows (tanpa error build-script), `pnpm dev` menjalankan client (:5173) dan server (:2567) bersamaan.
 - [x] `pnpm verify` (lint+typecheck+test+validate:assets) hijau.
 - [x] Spike TS 7: typecheck semua package < 10 s; atau fallback terdokumentasi di ADR-0011. (±1 s, tanpa fallback)
 - [x] Spike Rapier: init & 600 step di Node dan Chrome; hash state identik untuk input sama (test otomatis). (juga Edge)
 - [x] Spike Colyseus: room dengan schema builder, message `validate(zod)`, StateView; integration test lulus.
 - [x] Ocean prototype + sky + day/night dasar tampil; `?bench=ocean` ≥ 60 FPS (median 3 run) di reference PC preset High; frame time & draw calls tercatat. (median 164,9 FPS, dibatasi monitor 165 Hz)
-- [~] Preact overlay + pointer lock + Esc → pause berfungsi di Chrome & Edge. (otomatis: pointer lock & pause ✅; **tombol Esc fisik: uji manual owner**)
-- [ ] Owner berhasil menjalankan project mengikuti DEV_SETUP_WINDOWS tanpa bantuan tambahan. (**menunggu owner**)
+- [x] Preact overlay + pointer lock + Esc → pause berfungsi di Chrome & Edge. (otomatis + uji manual owner 2026-11-21)
+- [x] Owner berhasil menjalankan project mengikuti DEV_SETUP_WINDOWS tanpa bantuan tambahan. (2026-11-21)
 
 ## Phase 2 — Multiplayer foundation
 - [ ] 4 tab/browser bergabung ke world yang sama, saling melihat kapsul bergerak mulus (interpolasi 100 ms).

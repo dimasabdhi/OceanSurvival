@@ -19,4 +19,4 @@ Template: [0000-template.md](0000-template.md).
 | [0010](0010-asset-license-policy.md) | Kebijakan lisensi aset & manifest wajib | Accepted | 2026-11-21 |
 | [0011](0011-typescript-7.md) | TypeScript 7 dengan fallback | Accepted (spike Phase 1 lulus: typecheck ±1 s, tanpa fallback) | 2026-11-21 |
 | [0012](0012-tooling-biome-vitest-playwright.md) | Tooling: Biome, Vitest, Playwright, tsx | Accepted | 2026-11-21 |
-| [0013](0013-colyseus-builtin-netcode.md) | Netcode bawaan Colyseus 0.18 (defineInput, setFixedTimestep, Predict) untuk ADR-0005 | Proposed (validasi Phase 2) | 2026-11-21 |
+| [0013](0013-colyseus-builtin-netcode.md) | Netcode bawaan Colyseus 0.18 (defineInput, setFixedTimestep, Predict) untuk ADR-0005 | Accepted (2026-11-21) | 2026-11-21 |

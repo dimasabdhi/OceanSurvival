@@ -3,7 +3,7 @@
 Project: **OceanSurvival** (nama kerja). Game survival-lautan 3D first-person, co-op 2–4 pemain, berjalan di browser desktop (Chrome/Edge). Terinspirasi *jenis* gameplay Raft, tetapi seluruh identitas, aset, nama, cerita, dan kode **orisinal**.
 
 ## Status saat ini
-- Phase 0 (dokumentasi) ✅ · **Phase 1 (fondasi & tech spikes) selesai, menunggu review owner** — laporan: [docs/reports/PHASE_01_REPORT.md](docs/reports/PHASE_01_REPORT.md). Phase 2 hanya setelah owner menyetujui.
+- Phase 0 ✅ · Phase 1 ✅ ([laporan](docs/reports/PHASE_01_REPORT.md)) · **Phase 2 (multiplayer foundation) sedang dikerjakan**.
 - Kode `Spike*` (SpikeRoom, protocol/spike, physics-spike, DebugFloaters) adalah **spike Phase 1**, bukan fitur final — diganti di Phase 2.
 - Git: remote `origin` = github.com/dimasabdhi/OceanSurvival, branch `main`. Setelah setiap phase/perubahan terverifikasi: commit lalu push.
 - Sumber kebenaran urutan kerja: [docs/ROADMAP.md](docs/ROADMAP.md) dan [docs/ACCEPTANCE_CRITERIA.md](docs/ACCEPTANCE_CRITERIA.md).
