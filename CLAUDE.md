@@ -3,7 +3,7 @@
 Project: **OceanSurvival** (nama kerja). Game survival-lautan 3D first-person, co-op 2–4 pemain, berjalan di browser desktop (Chrome/Edge). Terinspirasi *jenis* gameplay Raft, tetapi seluruh identitas, aset, nama, cerita, dan kode **orisinal**.
 
 ## Status saat ini
-- Phase 0 ✅ · Phase 1 ✅ · **Phase 2 (multiplayer foundation) selesai, menunggu review owner** — [laporan](docs/reports/PHASE_02_REPORT.md). Phase 3 hanya setelah owner menyetujui.
+- Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ ([laporan](docs/reports/PHASE_02_REPORT.md)) · **Phase 3 (controller & rakit awal) sedang dikerjakan**.
 - PLACEHOLDER aktif: `TEST_LEVEL` (dek uji statis, diganti rakit Phase 3), `PlayerViews` (kapsul), `DebugFloaters`, `physics-spike` (regresi determinisme Rapier, dipertahankan).
 - Movement: satu-satunya step = `stepCharacter` (shared). Jangan menambah logika gerak di client/server di luar fungsi itu; hasil wajib `Math.fround`. Test `tests/integration/prediction.test.ts` harus tetap 0 koreksi.
 - Git: remote `origin` = github.com/dimasabdhi/OceanSurvival, branch `main`. Setelah setiap phase/perubahan terverifikasi: commit lalu push.

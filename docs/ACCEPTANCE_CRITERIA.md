@@ -32,14 +32,14 @@ Status: **Draft v1 (Phase 0)**. Kriteria phase yang jauh (≥ 9) akan diperinci 
 - [x] Preact overlay + pointer lock + Esc → pause berfungsi di Chrome & Edge. (otomatis + uji manual owner 2026-11-21)
 - [x] Owner berhasil menjalankan project mengikuti DEV_SETUP_WINDOWS tanpa bantuan tambahan. (2026-11-21)
 
-## Phase 2 — Multiplayer foundation (bukti: [PHASE_02_REPORT](reports/PHASE_02_REPORT.md))
+## Phase 2 — Multiplayer foundation ✅ (disetujui owner 2026-11-21; bukti: [PHASE_02_REPORT](reports/PHASE_02_REPORT.md))
 - [x] 4 tab/browser bergabung ke world yang sama, saling melihat kapsul bergerak mulus (interpolasi 100 ms). (E2E 3 pemain Chrome/Edge + uji integrasi 4 pemain; 4 tab manual: owner)
 - [x] Movement server-authoritative: posisi hanya berubah lewat input; test menolak cmd berlebih (speedhack) lulus.
 - [x] Reconciliation: pada RTT 150 ms (netsim) rata-rata koreksi < 5 cm, tidak ada snap > 25 cm saat bergerak lurus. (0 cm; `server.simulateLatency`)
 - [x] Drop koneksi → auto-reconnect, posisi & identitas utuh; drop melewati grace → pemain dikeluarkan bersih & disimpan.
 - [x] Payload invalid → disconnect 4002; flood → rate limit (integration test).
 - [x] Bot load test 4 pemain 10 menit: tick avg ≤ 2 ms, p95 ≤ 5 ms; downstream ≤ 64 kbps/client. (0,025 / 0,066 ms; 7,4 kbps)
-- [~] Restart server (Ctrl+C) → `onBeforeShutdown` menyimpan posisi (file driver), load kembali benar. (otomatis: test onBeforeShutdown + FileWorldRepository; **Ctrl+C sungguhan: uji manual owner**)
+- [x] Restart server (Ctrl+C) → `onBeforeShutdown` menyimpan posisi (file driver), load kembali benar. (otomatis + uji manual owner 2026-11-21)
 
 ## Phase 3 — First-person controller & starting raft
 - [ ] Walk/sprint/jump/swim permukaan & bawah air sesuai nilai GDD (test unit `stepMovement`).

@@ -1,6 +1,6 @@
 # Completion Report — Phase 2 (Multiplayer Foundation)
 
-Tanggal: 2026-11-21 · Status: **Selesai secara teknis, menunggu uji manual & persetujuan owner** · Branch: `main`
+Tanggal: 2026-11-21 · Status: **Selesai & disetujui owner (2026-11-21)** — uji manual §5 berhasil · Branch: `main`
 
 ## 1. Ringkasan
 Sekarang 1–4 pemain bisa masuk ke dunia yang sama dari browser. Mereka bisa berjalan, lari, lompat, jatuh ke laut, berenang, dan melompat kembali ke dek uji, sambil saling melihat dan chat. Server yang menentukan posisi semua pemain; client hanya mengirim tombol yang ditekan. Supaya tetap terasa instan, client "menebak" gerakannya sendiri dengan kode yang **sama persis** dengan server.
