@@ -8,6 +8,7 @@ import {
   BufferAttribute,
   BufferGeometry,
   Color,
+  DoubleSide,
   Mesh,
   type PerspectiveCamera,
   ShaderMaterial,
@@ -119,6 +120,9 @@ uniform float uLightLevel;
 uniform float uFoamLevel;
 uniform vec3 uFogColor;
 uniform float uFogDensity;
+uniform float uUnderwater;
+uniform vec3 uUnderwaterColor;
+uniform float uUnderwaterDensity;
 varying vec3 vWorldPos;
 varying vec3 vNormal;
 varying float vCrest;
@@ -129,6 +133,17 @@ void main() {
   vec3 toCam = cameraPosition - vWorldPos;
   float dist = length(toCam);
   vec3 v = toCam / dist;
+
+  if (!gl_FrontFacing) {
+    // Seen from below: a bright, wavy ceiling fading into the underwater haze.
+    float glow = pow(max(dot(-n, v), 0.0), 2.0);
+    vec3 under = mix(uUnderwaterColor, uShallow * 1.4, glow) * uLightLevel;
+    float uf = 1.0 - exp(-uUnderwaterDensity * dist);
+    gl_FragColor = vec4(mix(under, uUnderwaterColor * uLightLevel, clamp(uf, 0.0, 1.0)), 1.0);
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
+    return;
+  }
 
   // Body color: deeper in troughs, lighter on crests facing the viewer.
   float lift = clamp(vHeight * 0.8 + 0.5, 0.0, 1.0);
@@ -155,6 +170,8 @@ void main() {
   // Exponential-squared fog toward the horizon color.
   float fogF = 1.0 - exp(-pow(uFogDensity * dist, 2.0));
   col = mix(col, uFogColor, clamp(fogF, 0.0, 1.0));
+  // Camera under water looking at the top side (rare, at the surface boundary).
+  col = mix(col, uUnderwaterColor * uLightLevel, uUnderwater * clamp(1.0 - exp(-uUnderwaterDensity * dist), 0.0, 1.0));
 
   gl_FragColor = vec4(col, 1.0);
   #include <tonemapping_fragment>
@@ -181,6 +198,9 @@ export class OceanRenderer {
     uFoamLevel: { value: 1 },
     uFogColor: { value: new Color() },
     uFogDensity: { value: 0.001 },
+    uUnderwater: { value: 0 },
+    uUnderwaterColor: { value: new Color(0x0f4c5c) },
+    uUnderwaterDensity: { value: 0.08 },
   };
 
   constructor(
@@ -191,6 +211,8 @@ export class OceanRenderer {
       vertexShader: buildVertexShader(waves),
       fragmentShader,
       uniforms: this.uniforms,
+      // Visible from below when the camera dives (underwater surface).
+      side: DoubleSide,
     });
     this.mesh = new Mesh(createRadialGridGeometry(options), material);
     this.mesh.name = "Ocean";
@@ -204,8 +226,20 @@ export class OceanRenderer {
     old.dispose();
   }
 
-  update(worldTimeSeconds: number, camera: PerspectiveCamera, cycle: DayNightCycle): void {
-    computeWavePhases(this.waves, worldTimeSeconds, this.phases);
+  /**
+   * @param originX/originZ world position of the render frame's origin (the drifting raft,
+   *   ADR-0014): the mesh lives in raft-frame coordinates, waves are sampled in the world.
+   */
+  update(
+    worldTimeSeconds: number,
+    camera: PerspectiveCamera,
+    cycle: DayNightCycle,
+    originX = 0,
+    originZ = 0,
+    underwater = false,
+  ): void {
+    computeWavePhases(this.waves, worldTimeSeconds, this.phases, originX, originZ);
+    this.uniforms.uUnderwater.value = underwater ? 1 : 0;
     this.mesh.position.set(camera.position.x, 0, camera.position.z);
     const u = this.uniforms;
     const k = cycle.current;

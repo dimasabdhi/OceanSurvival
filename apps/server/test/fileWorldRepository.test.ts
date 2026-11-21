@@ -17,7 +17,8 @@ afterEach(() => {
 });
 
 const snapshot = (worldTime: number): WorldSnapshot => ({
-  formatVersion: 1,
+  formatVersion: 2,
+  raft: { worldX: 12, worldZ: -340, lanternOn: true },
   worldId: "test-world",
   worldTime,
   savedAt: new Date().toISOString(),
@@ -59,6 +60,20 @@ describe("FileWorldRepository", () => {
     await mkdir(join(dir, "worlds"), { recursive: true });
     writeFileSync(join(dir, "worlds", "test-world.json"), JSON.stringify({ formatVersion: 99 }));
     await expect(new FileWorldRepository(dir).loadWorld("test-world")).rejects.toThrow(/Corrupt/);
+  });
+
+  it("migrates a Phase 2 (v1) save: keeps players, clears positions, adds the raft", async () => {
+    const dir = tempDir();
+    await mkdir(join(dir, "worlds"), { recursive: true });
+    const v1 = { ...snapshot(77), formatVersion: 1 } as Record<string, unknown>;
+    delete v1.raft;
+    writeFileSync(join(dir, "worlds", "test-world.json"), JSON.stringify(v1));
+    const loaded = await new FileWorldRepository(dir).loadWorld("test-world");
+    expect(loaded?.formatVersion).toBe(2);
+    expect(loaded?.worldTime).toBe(77);
+    expect(loaded?.players.abcdefghijklmnop?.name).toBe("Dimas");
+    expect(loaded?.players.abcdefghijklmnop?.position).toBeNull();
+    expect(loaded?.raft).toEqual({ worldX: 0, worldZ: 0, lanternOn: false });
   });
 
   it("rejects path-traversal world ids", async () => {

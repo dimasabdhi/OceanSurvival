@@ -14,11 +14,12 @@
  * other players' positions), enforced with interaction groups.
  */
 import RAPIER from "@dimforge/rapier3d-compat";
-import type { BoxDef } from "../world/testLevel";
+import { type BoxDef, WATER_FLOW } from "../world/raft";
 import {
   Buttons,
   CHARACTER,
   KILL_PLANE_Y,
+  MAX_DIVE_DEPTH,
   MoveMode,
   SWIM_CENTER_DEPTH,
   WATER_LEVEL,
@@ -131,6 +132,37 @@ export class MovementWorld {
     return this.controller.computedGrounded();
   }
 
+  /**
+   * True if no STATIC geometry blocks the segment from `from` to `to`, ignoring the last
+   * `stopShort` meters (the target object itself may have a collider).
+   */
+  hasLineOfSight(
+    from: readonly [number, number, number],
+    to: readonly [number, number, number],
+    stopShort = 0.3,
+  ): boolean {
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    const dz = to[2] - from[2];
+    const length = Math.hypot(dx, dy, dz);
+    if (length <= stopShort) return true;
+    const ray = new RAPIER.Ray(
+      { x: from[0], y: from[1], z: from[2] },
+      { x: dx / length, y: dy / length, z: dz / length },
+    );
+    const hit = this.world.castRay(
+      ray,
+      length - stopShort,
+      true,
+      RAPIER.QueryFilterFlags.EXCLUDE_SENSORS,
+      CHARACTER_GROUPS,
+      undefined,
+      undefined,
+      (other) => !this.characters.has(other),
+    );
+    return hit === null;
+  }
+
   dispose(): void {
     this.controller.free();
     this.world.free();
@@ -140,6 +172,11 @@ export class MovementWorld {
 const desired = { x: 0, y: 0, z: 0 };
 const moved = { x: 0, y: 0, z: 0 };
 const swimCenterY = WATER_LEVEL - SWIM_CENTER_DEPTH;
+/** Within this distance below the swim depth the swimmer counts as "at the surface". */
+const SURFACE_TOLERANCE = 0.15;
+/** Head under water once the center is this far below the swim depth. */
+const DIVING_DEPTH = 0.5;
+const MIN_DIVE_CENTER_Y = swimCenterY - MAX_DIVE_DEPTH;
 
 function clamp(v: number, lo: number, hi: number): number {
   return v < lo ? lo : v > hi ? hi : Number.isNaN(v) ? lo : v;
@@ -170,10 +207,11 @@ export function stepCharacter(
   const wx = cos * mx - sin * mz;
   const wz = -sin * mx - cos * mz;
 
-  const swimming = s.mode === MoveMode.Swimming;
+  const inWater = s.mode === MoveMode.Swimming || s.mode === MoveMode.Diving;
   const jump = (cmd.buttons & Buttons.Jump) !== 0;
   const sprint = (cmd.buttons & Buttons.Sprint) !== 0;
-  const speed = swimming
+  const dive = (cmd.buttons & Buttons.Dive) !== 0;
+  const speed = inWater
     ? CHARACTER.swimSpeed
     : sprint && s.mode === MoveMode.Grounded
       ? CHARACTER.sprintSpeed
@@ -181,14 +219,27 @@ export function stepCharacter(
 
   let vy = s.vy;
   let dy: number;
-  if (swimming) {
-    if (jump) {
+  let leaping = false;
+  if (inWater) {
+    const atSurface = s.y >= swimCenterY - SURFACE_TOLERANCE;
+    if (jump && atSurface) {
+      // Leap out of the water (e.g. back onto the raft).
+      leaping = true;
       vy = CHARACTER.swimLeapSpeed;
       dy = vy * dt;
     } else {
       vy = 0;
-      // Buoyancy: ease the capsule center toward the swim depth (max 2 m/s).
-      dy = clamp(swimCenterY - s.y, -2 * dt, 2 * dt);
+      if (dive) {
+        dy = Math.max(-CHARACTER.swimVerticalSpeed * dt, MIN_DIVE_CENTER_Y - s.y);
+      } else if (jump) {
+        dy = Math.min(CHARACTER.swimVerticalSpeed * dt, swimCenterY - s.y);
+      } else if (atSurface) {
+        // Buoyancy at the surface: ease toward the swim depth.
+        dy = clamp(swimCenterY - s.y, -2 * dt, 2 * dt);
+      } else {
+        // Slowly float back up when not actively diving.
+        dy = Math.min(CHARACTER.swimRiseSpeed * dt, swimCenterY - s.y);
+      }
     }
   } else {
     if (jump && s.mode === MoveMode.Grounded) vy = CHARACTER.jumpSpeed;
@@ -199,6 +250,11 @@ export function stepCharacter(
   desired.x = wx * speed * dt;
   desired.y = dy;
   desired.z = wz * speed * dt;
+  if (inWater && !leaping) {
+    // The current carries swimmers past the drifting raft (ADR-0014).
+    desired.x += WATER_FLOW[0] * dt;
+    desired.z += WATER_FLOW[1] * dt;
+  }
   const grounded = world.move(body, s, desired, moved);
 
   s.x = Math.fround(s.x + moved.x);
@@ -208,14 +264,15 @@ export function stepCharacter(
   // Head bump / landing: stop vertical velocity when the move was blocked.
   if ((vy > 0 && moved.y < desired.y - 1e-4) || (grounded && vy < 0)) vy = 0;
 
-  const leaping = swimming && jump;
-  if (!leaping && !grounded && vy <= 0 && s.y <= swimCenterY + 0.05) {
-    s.mode = MoveMode.Swimming;
+  if (leaping) {
+    s.mode = MoveMode.Airborne;
+  } else if (grounded) {
+    s.mode = MoveMode.Grounded;
+  } else if (inWater || (vy <= 0 && s.y <= swimCenterY + 0.05)) {
+    s.mode = s.y < swimCenterY - DIVING_DEPTH ? MoveMode.Diving : MoveMode.Swimming;
     vy = 0;
-  } else if (!leaping && swimming && !grounded && vy === 0) {
-    s.mode = MoveMode.Swimming;
   } else {
-    s.mode = grounded ? MoveMode.Grounded : MoveMode.Airborne;
+    s.mode = MoveMode.Airborne;
   }
   s.vy = Math.fround(vy);
 }

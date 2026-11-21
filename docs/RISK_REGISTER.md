@@ -5,7 +5,7 @@ Skala: Probabilitas (P) & Dampak (D) 1–5; Skor = P × D. ≥ 15 = kritis.
 
 | ID | Risiko | P | D | Skor | Mitigasi | Pemicu / indikator | Owner | Phase cek |
 |---|---|---|---|---|---|---|---|---|
-| R1 | Prediction/reconciliation pada **rakit bergerak** menimbulkan jitter/rubber-band | 3 | 5 | **15** | Netcode bawaan Colyseus 0.18 (ADR-0013, mengurangi kode buatan sendiri); raft-local frame; dt fixed identik; `stepMovement` shared; Rapier versi exact; spike di Phase 2–3 sebelum fitur lain; fallback: smoothing visual + toleransi koreksi lebih besar | Koreksi rata-rata > 5 cm di RTT 150 ms | Claude | 2, 3, 11 |
+| R1 | Prediction/reconciliation pada **rakit bergerak** menimbulkan jitter/rubber-band | 1 | 5 | 5 | **Phase 3: ADR-0014 frame rakit → 0 cm koreksi termasuk transisi air↔rakit.** Netcode bawaan Colyseus 0.18 (ADR-0013, mengurangi kode buatan sendiri); raft-local frame; dt fixed identik; `stepMovement` shared; Rapier versi exact; spike di Phase 2–3 sebelum fitur lain; fallback: smoothing visual + toleransi koreksi lebih besar | Koreksi rata-rata > 5 cm di RTT 150 ms | Claude | 2, 3, 11 |
 | R2 | Rapier compat tidak berperilaku sama di Node vs browser / perubahan API (0.20–0.21 sudah breaking) | 1 | 5 | 5 | **Phase 1: hash identik Node/Chrome/Edge (test otomatis).** Pin exact; determinism hash test di CI lokal; baca CHANGELOG `dimforge/rapier/bindings/typescript` sebelum upgrade; wrapper `physics/` agar API terisolasi | Hash berbeda; error init WASM di Node | Claude | 1 |
 | R3 | Scope sangat besar untuk tim kecil | 5 | 4 | **20** | Milestone ketat, vertical slice Phase 6, item Deferred eksplisit, owner memprioritaskan tiap phase | Phase > 2× estimasi | Owner + Claude | Setiap phase |
 | R4 | Ocean tidak cukup cantik atau terlalu berat di browser | 3 | 4 | 12 | Prototype Phase 1 + benchmark; quality preset; tanpa planar reflection v1 | FPS < 60 di reference PC | Claude | 1, 4 |
@@ -28,6 +28,8 @@ Skala: Probabilitas (P) & Dampak (D) 1–5; Skor = P × D. ≥ 15 = kritis.
 | R21 | Catatan pemain di file save tumbuh tanpa batas (setiap pemain yang pernah masuk) | 2 | 2 | 4 | Retensi/cleanup di Phase 8 (PostgreSQL); dev: hapus `data/saves` | File save > 1 MB | Claude | 8 |
 | R22 | Satu room per world hanya dijaga dalam satu proses (registry in-memory) | 2 | 4 | 8 | Lock PostgreSQL (advisory lock) di Phase 8 sebelum multi-proses/hosting | Lebih dari 1 proses server | Claude | 8, 16 |
 
+| R23 | Frame relatif-rakit (ADR-0014) perlu perluasan saat rakit berbelok/berubah kecepatan (Phase 11) dan saat ada pulau diam di dunia (Phase 12) | 3 | 4 | 12 | Rancang ADR lanjutan sebelum Phase 11; kecepatan rakit menjadi state yang dibaca step; jangkar → frame diam | Koreksi prediksi saat layar/kemudi dipakai | Claude | 11, 12 |
+
 ## Risiko teratas saat ini
 1. **R1 / R20** — jitter rakit & netcode bawaan Colyseus → di-spike pertama kali di Phase 2–3.
 2. **R3** — scope → dikelola lewat vertical slice dan disiplin phase.
@@ -39,3 +41,4 @@ Skala: Probabilitas (P) & Dampak (D) 1–5; Skor = P × D. ≥ 15 = kritis.
 | 2026-11-21 | Register awal (Phase 0) |
 | 2026-11-21 | Phase 1: R2, R6 turun (spike lulus); R1 turun (ADR-0013); tambah R18–R20 |
 | 2026-11-21 | Phase 2: R20 turun (prediksi exact); tambah R21–R22 |
+| 2026-11-21 | Phase 3: R1 turun (frame rakit, 0 cm di rakit hanyut); tambah R23 |

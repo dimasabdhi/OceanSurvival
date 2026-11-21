@@ -240,3 +240,41 @@ button.primary:hover {
   background: rgba(11, 37, 64, 0.85);
   color: var(--text);
 }
+
+/* --- Phase 3 --- */
+.prompt {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 28px);
+  transform: translateX(-50%);
+  background: rgba(11, 37, 64, 0.75);
+  padding: 4px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.prompt kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 6px;
+  margin-right: 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #0b2540;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+}
+
+.underwater {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(15, 76, 92, 0.1) 40%, rgba(6, 30, 45, 0.55));
+  pointer-events: none;
+}
+
+.card label.check {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}

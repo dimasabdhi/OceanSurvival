@@ -5,6 +5,7 @@ import { acquireProfile, loadPlayerName } from "./net/identity";
 import { loadQualityPreset } from "./render/quality";
 import { App } from "./ui/App";
 import { t } from "./ui/i18n";
+import { initSettings } from "./ui/settings";
 import * as store from "./ui/store";
 import "./ui/styles.css";
 
@@ -33,6 +34,7 @@ if (!hasWebGL2()) {
 } else {
   const params = readLaunchParams(window.location.search);
   store.quality.value = params.quality ?? loadQualityPreset();
+  initSettings();
   store.connection.value = { status: params.net ? "offline" : "disabled", players: 0, rttMs: null };
   store.profile.value = await acquireProfile();
   store.playerName.value = loadPlayerName(store.profile.value);

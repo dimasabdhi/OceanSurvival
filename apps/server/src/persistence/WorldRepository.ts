@@ -5,7 +5,8 @@ import { z } from "zod";
  * Phase 2: memory/file drivers. Phase 8 adds PostgreSQL behind the same interface.
  */
 
-export const SAVE_FORMAT_VERSION = 1;
+/** Current save format. Older saves are migrated on load (see parseSnapshot). */
+export const SAVE_FORMAT_VERSION = 2;
 
 export const SavedPosition = z.object({
   x: z.number().finite(),
@@ -22,6 +23,7 @@ export const PlayerRecord = z.object({
 });
 export type PlayerRecord = z.infer<typeof PlayerRecord>;
 
+/** Phase 2 format: player positions were relative to the static test deck. */
 export const WorldSnapshotV1 = z.object({
   formatVersion: z.literal(1),
   worldId: z.string(),
@@ -29,7 +31,51 @@ export const WorldSnapshotV1 = z.object({
   savedAt: z.iso.datetime(),
   players: z.record(z.string(), PlayerRecord),
 });
-export type WorldSnapshot = z.infer<typeof WorldSnapshotV1>;
+
+/** Phase 3 format: player positions are in the raft frame (ADR-0014) + raft world state. */
+export const WorldSnapshotV2 = z.object({
+  formatVersion: z.literal(2),
+  worldId: z.string(),
+  worldTime: z.number().finite().nonnegative(),
+  savedAt: z.iso.datetime(),
+  players: z.record(z.string(), PlayerRecord),
+  raft: z.object({
+    /** Raft position in the world at `worldTime`. */
+    worldX: z.number().finite(),
+    worldZ: z.number().finite(),
+    lanternOn: z.boolean(),
+  }),
+});
+export type WorldSnapshot = z.infer<typeof WorldSnapshotV2>;
+
+/**
+ * Validates a stored snapshot of ANY known format and migrates it to the current one.
+ * Throws on unknown/corrupt data (never silently resets a world).
+ */
+export function parseSnapshot(raw: unknown): WorldSnapshot {
+  const version = (raw as { formatVersion?: unknown } | null)?.formatVersion;
+  if (version === 1) return migrateV1toV2(WorldSnapshotV1.parse(raw));
+  if (version === 2) return WorldSnapshotV2.parse(raw);
+  throw new Error(`Unknown save formatVersion: ${String(version)}`);
+}
+
+/**
+ * v1 → v2: the Phase 2 test deck no longer exists, so saved positions would put players
+ * in mid-air or far from the raft. Positions are cleared (players respawn on the raft);
+ * names and identities are kept. The raft starts at the world origin, lantern off.
+ */
+function migrateV1toV2(v1: z.infer<typeof WorldSnapshotV1>): WorldSnapshot {
+  const players: Record<string, PlayerRecord> = {};
+  for (const [id, p] of Object.entries(v1.players)) players[id] = { ...p, position: null };
+  return {
+    formatVersion: 2,
+    worldId: v1.worldId,
+    worldTime: v1.worldTime,
+    savedAt: v1.savedAt,
+    players,
+    raft: { worldX: 0, worldZ: 0, lanternOn: false },
+  };
+}
 
 export const PlayerIdentity = z.object({
   playerId: z.string(),
@@ -53,10 +99,10 @@ export class MemoryWorldRepository implements WorldRepository {
 
   async loadWorld(worldId: string): Promise<WorldSnapshot | null> {
     const raw = this.worlds.get(worldId);
-    return raw ? WorldSnapshotV1.parse(JSON.parse(raw)) : null;
+    return raw ? parseSnapshot(JSON.parse(raw)) : null;
   }
   async saveWorld(snapshot: WorldSnapshot): Promise<void> {
-    this.worlds.set(snapshot.worldId, JSON.stringify(WorldSnapshotV1.parse(snapshot)));
+    this.worlds.set(snapshot.worldId, JSON.stringify(WorldSnapshotV2.parse(snapshot)));
   }
   async getIdentity(playerId: string): Promise<PlayerIdentity | null> {
     return this.identities.get(playerId) ?? null;

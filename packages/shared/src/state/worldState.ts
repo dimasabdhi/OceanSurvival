@@ -25,6 +25,26 @@ export const PlayerState = schema(
 );
 export type PlayerState = SchemaType<typeof PlayerState>;
 
+/**
+ * The raft's motion in the WORLD (ADR-0014): world position at `originTime` plus a
+ * constant velocity. Players are simulated relative to the raft; this is used for
+ * rendering the ocean/sky around it (and later world spawns). See raftWorldPosition().
+ */
+export const RaftState = schema(
+  {
+    originX: t.float64().default(0),
+    originZ: t.float64().default(0),
+    /** World time (s) at which the raft was at (originX, originZ). */
+    originTime: t.float64().default(0),
+    velX: t.float32().default(0),
+    velZ: t.float32().default(0),
+    /** Lantern on the raft (Phase 3 interaction demo). */
+    lanternOn: t.boolean().default(false),
+  },
+  "RaftState",
+);
+export type RaftState = SchemaType<typeof RaftState>;
+
 export const WorldState = schema(
   {
     worldId: t.string(),
@@ -32,6 +52,7 @@ export const WorldState = schema(
     timeOrigin: t.float64().default(0),
     /** Keyed by Colyseus sessionId. */
     players: t.map(PlayerState),
+    raft: t.ref(RaftState),
   },
   "WorldState",
 );

@@ -36,7 +36,13 @@ export function App({ game }: { game: Game }) {
           {t("net.reconnectingOverlay")}
         </div>
       )}
+      {phase === "in-world" && store.underwater.value && <div class="underwater" />}
       {phase === "in-world" && locked && <div class="crosshair" />}
+      {phase === "in-world" && locked && store.interactPrompt.value && (
+        <div class="prompt" data-testid="interact-prompt">
+          <kbd>{t("interact.key")}</kbd> {store.interactPrompt.value.action}
+        </div>
+      )}
       {overlay}
     </>
   );
@@ -344,6 +350,26 @@ function PauseMenu({ game }: { game: Game }) {
               store.sensitivity.value = Number((e.currentTarget as HTMLInputElement).value);
             }}
           />
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={store.headBob.value}
+            onChange={(e) => {
+              store.headBob.value = (e.currentTarget as HTMLInputElement).checked;
+            }}
+          />
+          {t("pause.headBob")}
+        </label>
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={store.raftSway.value}
+            onChange={(e) => {
+              store.raftSway.value = (e.currentTarget as HTMLInputElement).checked;
+            }}
+          />
+          {t("pause.raftSway")}
         </label>
         {game.online && (
           <button type="button" data-testid="leave-button" onClick={() => void game.leaveWorld()}>

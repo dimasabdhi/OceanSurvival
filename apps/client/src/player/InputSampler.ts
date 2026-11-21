@@ -34,7 +34,9 @@ export class InputSampler {
     out.pitch = this.pitch;
     out.buttons =
       (k.has("Space") ? Buttons.Jump : 0) |
-      (k.has("ShiftLeft") || k.has("ShiftRight") ? Buttons.Sprint : 0);
+      (k.has("ShiftLeft") || k.has("ShiftRight") ? Buttons.Sprint : 0) |
+      // Dive = C only. (Ctrl would combine with W into Ctrl+W, which closes the tab.)
+      (k.has("KeyC") ? Buttons.Dive : 0);
   }
 
   dispose(): void {

@@ -11,6 +11,10 @@ export const CHARACTER = {
   walkSpeed: 3.6,
   sprintSpeed: 5.6,
   swimSpeed: 2.4,
+  /** Diving down / swimming up under water. */
+  swimVerticalSpeed: 2.0,
+  /** Passive float-up speed when under water and not diving. */
+  swimRiseSpeed: 0.6,
   /** Jump apex ≈ 1.1 m: v = sqrt(2 g h). */
   jumpSpeed: 4.65,
   /** Leap out of the water onto a platform/raft edge (~2 m rise). */
@@ -34,6 +38,8 @@ export const CHARACTER_CENTER_HEIGHT = CHARACTER.halfHeight + CHARACTER.radius;
 export const WATER_LEVEL = 0;
 /** While swimming, the capsule center floats this far below the water surface (head above water). */
 export const SWIM_CENTER_DEPTH = 0.55;
+/** Deepest a swimmer can dive (m below the swim depth). Oxygen arrives in Phase 9. */
+export const MAX_DIVE_DEPTH = 25;
 /** Below this the player is respawned at the spawn point (safety net). */
 export const KILL_PLANE_Y = -60;
 
@@ -42,6 +48,8 @@ export const MoveMode = {
   Grounded: 0,
   Airborne: 1,
   Swimming: 2,
+  /** Swimming with the head under water. */
+  Diving: 3,
 } as const;
 export type MoveMode = (typeof MoveMode)[keyof typeof MoveMode];
 
@@ -49,4 +57,6 @@ export type MoveMode = (typeof MoveMode)[keyof typeof MoveMode];
 export const Buttons = {
   Jump: 1,
   Sprint: 2,
+  /** Dive down while swimming (C). */
+  Dive: 4,
 } as const;

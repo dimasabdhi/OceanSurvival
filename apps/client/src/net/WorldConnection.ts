@@ -8,10 +8,11 @@ import {
   MovementWorld,
   type PlayerInput,
   type PlayerState,
+  RAFT_COLLIDERS,
   REMOTE_INTERPOLATION_DELAY_MS,
+  raftWorldPosition,
   type ServerNotice,
   stepCharacter,
-  TEST_LEVEL,
   WORLD_ROOM_NAME,
   WorldState,
 } from "@oceansurvival/shared";
@@ -28,7 +29,8 @@ export type ConnectionEvent =
   | { type: "status"; status: "connected" | "reconnecting" }
   | { type: "closed"; code: number; reason: "duplicate" | "abuse" | "server" | "network" | "left" }
   | { type: "chat"; message: ChatBroadcast }
-  | { type: "notice"; notice: ServerNotice };
+  | { type: "notice"; notice: ServerNotice }
+  | { type: "interact-reject"; targetId: string; reason: string };
 
 export interface Pose {
   x: number;
@@ -86,6 +88,9 @@ export class WorldConnection {
     });
     room.onMessage("chat", (m: ChatBroadcast) => onEvent({ type: "chat", message: m }));
     room.onMessage("server.notice", (n: ServerNotice) => onEvent({ type: "notice", notice: n }));
+    room.onMessage("interact.reject", (m: { targetId: string; reason: string }) =>
+      onEvent({ type: "interact-reject", ...m }),
+    );
   }
 
   /** `server`: the server URL, or an existing SDK client (tests). */
@@ -97,7 +102,7 @@ export class WorldConnection {
     onEvent: (e: ConnectionEvent) => void,
   ): Promise<WorldConnection> {
     await initPhysics();
-    const movement = new MovementWorld(TEST_LEVEL.boxes);
+    const movement = new MovementWorld(RAFT_COLLIDERS);
     const client = typeof server === "string" ? new Client(server) : server;
     const room = await client.joinOrCreate<WorldState>(
       WORLD_ROOM_NAME,
@@ -159,6 +164,19 @@ export class WorldConnection {
     const result = { count: c.count, avg: c.count ? c.sum / c.count : 0, max: c.max };
     this.corrections = { count: 0, sum: 0, max: 0 };
     return result;
+  }
+
+  /** The raft's position in the world now (rendering origin, ADR-0014). */
+  raftWorld(worldTime: number, out: [number, number]): [number, number] {
+    return raftWorldPosition(this.room.state.raft, worldTime, out);
+  }
+
+  get lanternOn(): boolean {
+    return this.room.state.raft?.lanternOn ?? false;
+  }
+
+  sendInteract(targetId: string): void {
+    this.room.send("interact.use", { targetId });
   }
 
   sendChat(text: string): void {

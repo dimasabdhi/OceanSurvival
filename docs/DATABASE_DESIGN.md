@@ -2,6 +2,8 @@
 
 Status: **Draft v1 (Phase 0)** · ADR: [0007](adr/0007-persistence-strategy.md)
 
+> **Status Phase 3:** driver `file`/`memory` memakai snapshot **formatVersion 2** (`raft: { worldX, worldZ, lanternOn }` + posisi pemain dalam frame rakit). Save v1 (Phase 2) dimigrasi otomatis saat dimuat (`parseSnapshot`): posisi pemain dikosongkan (dek uji lama sudah tidak ada), rakit mulai di titik asal. Diuji di `fileWorldRepository.test.ts`.
+
 ## 1. Strategi bertahap
 | Phase | Driver | Alasan |
 |---|---|---|

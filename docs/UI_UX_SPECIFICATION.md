@@ -69,7 +69,7 @@ Boot/Loading ─► Main Menu ─┬─► Create World ─► Lobby ─► Load
 | Gerak | W A S D |
 | Lompat / naik (berenang) | Space |
 | Sprint | Shift |
-| Jongkok / turun (berenang) | C / Ctrl |
+| Menyelam (saat berenang) | C (bukan Ctrl: Ctrl+W menutup tab browser). Jongkok di darat: Deferred |
 | Interaksi | E (tahan untuk revive/aksi lama) |
 | Aksi utama (lempar hook, serang, place) | Klik kiri |
 | Aksi sekunder (menu build, aim) | Klik kanan |

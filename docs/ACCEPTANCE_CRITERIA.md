@@ -41,12 +41,12 @@ Status: **Draft v1 (Phase 0)**. Kriteria phase yang jauh (≥ 9) akan diperinci 
 - [x] Bot load test 4 pemain 10 menit: tick avg ≤ 2 ms, p95 ≤ 5 ms; downstream ≤ 64 kbps/client. (0,025 / 0,066 ms; 7,4 kbps)
 - [x] Restart server (Ctrl+C) → `onBeforeShutdown` menyimpan posisi (file driver), load kembali benar. (otomatis + uji manual owner 2026-11-21)
 
-## Phase 3 — First-person controller & starting raft
-- [ ] Walk/sprint/jump/swim permukaan & bawah air sesuai nilai GDD (test unit `stepMovement`).
-- [ ] Berjalan & melompat di rakit yang hanyut 0.6 m/s tanpa jitter terlihat (RTT 0 dan 100 ms); tidak tergelincir dari rakit saat diam.
-- [ ] Naik dari air ke rakit dan sebaliknya mulus; transisi frame benar di prediction & server (test determinism).
-- [ ] Prompt interaksi muncul pada objek interaktif ≤ 2.5 m; aksi di luar 3.0 m (posisi server) ditolak.
-- [ ] Pause & settings (sensitivitas, FOV, preset grafik) tersimpan per browser.
+## Phase 3 — First-person controller & starting raft (bukti: [PHASE_03_REPORT](reports/PHASE_03_REPORT.md))
+- [x] Walk/sprint/jump/swim permukaan & bawah air sesuai nilai GDD (test unit `stepCharacter`, 8 test).
+- [x] Berjalan & melompat di rakit yang hanyut 0.6 m/s tanpa jitter (prediksi RTT 150 ms: 0 cm koreksi; ADR-0014); tidak tergelincir saat diam 10 s (test). "Tidak terlihat" secara visual: uji manual owner.
+- [x] Naik dari air ke rakit dan sebaliknya; deterministik di prediction & server (test round-trip: 119 reconcile, 0 cm).
+- [x] Prompt interaksi muncul pada objek interaktif ≤ 2.5 m; aksi di luar 3.0 m (posisi server) ditolak (integration + E2E Chrome/Edge).
+- [x] Pause & settings (sensitivitas, FOV, preset grafik, goyangan kepala, goyangan rakit) tersimpan per browser (E2E).
 
 ## Phase 4 — Ocean & floating resources
 - [ ] Tinggi gelombang client & server untuk (x,z,t) sama (selisih < 1 mm, test).

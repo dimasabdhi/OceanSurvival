@@ -4,9 +4,10 @@ import { z } from "zod";
 import {
   type PlayerIdentity,
   PlayerIdentity as PlayerIdentitySchema,
+  parseSnapshot,
   type WorldRepository,
   type WorldSnapshot,
-  WorldSnapshotV1,
+  WorldSnapshotV2,
 } from "./WorldRepository";
 
 /**
@@ -22,17 +23,16 @@ export class FileWorldRepository implements WorldRepository {
   async loadWorld(worldId: string): Promise<WorldSnapshot | null> {
     const raw = await this.readJson(this.worldPath(worldId));
     if (raw === null) return null;
-    const parsed = WorldSnapshotV1.safeParse(raw);
-    if (!parsed.success) {
-      throw new Error(
-        `Corrupt or incompatible save for world "${worldId}": ${z.prettifyError(parsed.error)}`,
-      );
+    try {
+      return parseSnapshot(raw);
+    } catch (e) {
+      const detail = e instanceof z.ZodError ? z.prettifyError(e) : (e as Error).message;
+      throw new Error(`Corrupt or incompatible save for world "${worldId}": ${detail}`);
     }
-    return parsed.data;
   }
 
   saveWorld(snapshot: WorldSnapshot): Promise<void> {
-    const valid = WorldSnapshotV1.parse(snapshot);
+    const valid = WorldSnapshotV2.parse(snapshot);
     return this.writeJson(this.worldPath(valid.worldId), valid);
   }
 

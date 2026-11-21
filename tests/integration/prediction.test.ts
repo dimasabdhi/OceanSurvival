@@ -12,6 +12,7 @@ import {
   MoveMode,
   MovementWorld,
   type PlayerState,
+  WATER_FLOW,
 } from "@oceansurvival/shared";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type Pose, WorldConnection } from "../../apps/client/src/net/WorldConnection";
@@ -100,15 +101,21 @@ describe("client prediction vs authoritative server (RTT 150 ms)", () => {
     expect(straight.avg).toBeLessThan(0.05);
     expect(straight.max).toBeLessThan(0.25);
     expect(mixed.avg).toBeLessThan(0.05);
-    // Converged: predicted pose equals the authoritative state once idle.
-    expect(local?.x).toBeCloseTo(authoritative.x, 2);
-    expect(local?.y).toBeCloseTo(authoritative.y, 2);
-    expect(local?.z).toBeCloseTo(authoritative.z, 2);
+    // Converged: once idle, the predicted pose equals the authoritative state — exactly
+    // on the raft; a swimmer keeps drifting with the current (ADR-0014), so the latest
+    // received server state lags by about one round trip of drift.
+    const drifting = authoritative.mode === MoveMode.Swimming;
+    const tolerance = drifting ? Math.hypot(...WATER_FLOW) * 0.4 : 0.005;
+    expect(Math.abs((local?.x ?? 0) - authoritative.x)).toBeLessThan(tolerance);
+    expect(Math.abs((local?.y ?? 0) - authoritative.y)).toBeLessThan(0.005);
+    expect(Math.abs((local?.z ?? 0) - authoritative.z)).toBeLessThan(tolerance);
 
-    // The other client sees this player (interpolated) close to the same place.
+    // The other client sees this player (interpolated, 100 ms behind) near the same place.
     const remote = watcher.room.state.players.get(conn.sessionId) as PlayerState;
     const seen = watcher.readPose(remote, pose());
-    expect(Math.hypot(seen.x - authoritative.x, seen.z - authoritative.z)).toBeLessThan(0.1);
+    expect(Math.hypot(seen.x - authoritative.x, seen.z - authoritative.z)).toBeLessThan(
+      drifting ? tolerance : 0.1,
+    );
     expect([MoveMode.Grounded, MoveMode.Swimming]).toContain(authoritative.mode);
     expect(events).toContain("status");
 
@@ -116,6 +123,48 @@ describe("client prediction vs authoritative server (RTT 150 ms)", () => {
     await watcher.leave();
     conn.dispose();
     watcher.dispose();
+  }, 30_000);
+
+  it("raft round trip: walk off, dive, swim back, leap onto the raft — zero corrections", async () => {
+    const conn = await WorldConnection.connect(
+      colyseus.sdk as never,
+      DEFAULT_WORLD_ID,
+      newPlayer("RoundTrip"),
+      "RoundTrip",
+      () => undefined,
+    );
+    const p = pose();
+    await waitFor(() => conn.localPose(p) !== null, 5000);
+    const idleCmd = { moveX: 0, moveZ: 0, yaw: 0, pitch: 0, buttons: 0 };
+    await drive(conn, 600, (_t, o) => Object.assign(o, idleCmd));
+    conn.takeCorrectionStats();
+
+    // 1) Walk forward (-Z) off the raft into the water.
+    await drive(conn, 1200, (_t, o) => Object.assign(o, { ...idleCmd, moveZ: 1 }));
+    // 2) Dive for 0.6 s, then float up.
+    await drive(conn, 600, (_t, o) => Object.assign(o, { ...idleCmd, buttons: Buttons.Dive }));
+    await drive(conn, 1500, (_t, o) => Object.assign(o, idleCmd));
+    // 3) Turn around (+Z), swim back and leap when close to the raft edge.
+    const back = Math.fround(Math.PI);
+    await drive(conn, 4000, (_t, o) => {
+      const now = conn.localPose(pose());
+      const nearEdge = (now?.z ?? -99) > -2.3 && now?.mode === MoveMode.Swimming;
+      const onRaft = now?.mode === MoveMode.Grounded;
+      Object.assign(o, {
+        ...idleCmd,
+        yaw: back,
+        moveZ: onRaft ? 0 : 1,
+        buttons: nearEdge ? Buttons.Jump : 0,
+      });
+    });
+    const stats = conn.takeCorrectionStats();
+    const final = conn.localPose(pose());
+    console.info("[prediction] raft round trip", stats, final);
+    expect(stats.count).toBeGreaterThan(20);
+    expect(stats.max).toBeLessThan(0.01);
+    expect(final?.mode).toBe(MoveMode.Grounded);
+    await conn.leave();
+    conn.dispose();
   }, 30_000);
 
   it("control: a client simulating different geometry IS corrected (the metric works)", async () => {

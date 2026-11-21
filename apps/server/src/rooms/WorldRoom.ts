@@ -12,16 +12,24 @@ import {
   ChatSend,
   CloseCodes,
   DAY_LENGTH_SECONDS,
+  distance3,
+  eyePosition,
+  findInteractable,
+  INTERACT_SERVER_RANGE,
+  InteractUse,
   initPhysics,
   isBelowKillPlane,
   MoveMode,
   MovementWorld,
   PlayerInput,
   PlayerState,
+  RAFT_COLLIDERS,
+  RAFT_DECK_Y,
+  RAFT_SPAWN_POINTS,
+  RAFT_VELOCITY,
+  raftWorldPosition,
   SIM_TICK_RATE,
   stepCharacter,
-  TEST_LEVEL,
-  TEST_PLATFORM_TOP_Y,
   WorldJoinOptions,
   WorldState,
 } from "@oceansurvival/shared";
@@ -54,7 +62,14 @@ const MAX_VIOLATIONS = 50;
 
 const RATE_LIMITS = {
   "chat.send": { capacity: 3, perSecond: 1 },
+  "interact.use": { capacity: 5, perSecond: 10 },
 };
+
+/**
+ * A swimmer this far from the raft (the current carries them away at 0.6 m/s) is
+ * brought back to the raft. Safety net until oxygen/death exist (Phase 9).
+ */
+const MAX_DISTANCE_FROM_RAFT = 200;
 
 /**
  * Worlds that currently have a room in this process. A world must never run in two
@@ -94,7 +109,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       moveZ: [-1, 1],
       yaw: [-Math.PI - 0.01, Math.PI + 0.01],
       pitch: [-CHARACTER.maxPitch, CHARACTER.maxPitch],
-      buttons: [0, 3],
+      buttons: [0, 7],
     },
   });
 
@@ -104,6 +119,23 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       const player = this.state.players.get(client.sessionId);
       if (!player) return;
       this.broadcast("chat", { from: player.name, text: message.text });
+    }),
+    "interact.use": validate(InteractUse, (client, message) => {
+      if (!this.rateLimit(client, "interact.use")) return;
+      const player = this.state.players.get(client.sessionId);
+      const target = findInteractable(message.targetId);
+      if (!player || !target) return;
+      // Validate against the SERVER position (GAMEPLAY_SYSTEMS §A): range + line of sight.
+      const eye = eyePosition(player);
+      if (distance3(eye, target.point) > INTERACT_SERVER_RANGE) {
+        client.send("interact.reject", { targetId: target.id, reason: "too-far" });
+        return;
+      }
+      if (!this.movement.hasLineOfSight(eye, target.point, target.radius + 0.1)) {
+        client.send("interact.reject", { targetId: target.id, reason: "blocked" });
+        return;
+      }
+      if (target.kind === "lantern") this.state.raft.lanternOn = !this.state.raft.lanternOn;
     }),
   };
 
@@ -124,13 +156,21 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     this.claimedWorldId = worldId;
     const { repository, config } = services();
     await initPhysics();
-    this.movement = new MovementWorld(TEST_LEVEL.boxes);
+    this.movement = new MovementWorld(RAFT_COLLIDERS);
 
     const snapshot = await repository.loadWorld(worldId);
     this.records = snapshot?.players ?? {};
     this.state.worldId = worldId;
     // New worlds start mid-morning (25% of the day cycle).
     this.state.timeOrigin = snapshot?.worldTime ?? DAY_LENGTH_SECONDS * 0.25;
+    // The raft drifts from where it was saved (ADR-0014).
+    const raft = this.state.raft;
+    raft.originX = snapshot?.raft.worldX ?? 0;
+    raft.originZ = snapshot?.raft.worldZ ?? 0;
+    raft.originTime = this.state.timeOrigin;
+    raft.velX = RAFT_VELOCITY[0];
+    raft.velZ = RAFT_VELOCITY[1];
+    raft.lanternOn = snapshot?.raft.lanternOn ?? false;
     this.setMetadata({ worldId });
 
     this.setFixedTimestep((ctx) => this.step(ctx.dt), SIM_TICK_RATE);
@@ -255,7 +295,9 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
         idleCommand.pitch = player.pitch;
         stepCharacter(this.movement, session.body, player, idleCommand, dt);
       }
-      if (isBelowKillPlane(player)) this.placeAtSpawn(player);
+      if (isBelowKillPlane(player) || Math.hypot(player.x, player.z) > MAX_DISTANCE_FROM_RAFT) {
+        this.placeAtSpawn(player);
+      }
     }
     this.tickStats.record(performance.now() - started);
   }
@@ -270,10 +312,10 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
   }
 
   private placeAtSpawn(player: PlayerState): void {
-    const points = TEST_LEVEL.spawnPoints;
+    const points = RAFT_SPAWN_POINTS;
     const [sx, sz] = points[this.spawnIndex++ % points.length] ?? [0, 0];
     player.x = Math.fround(sx);
-    player.y = Math.fround(TEST_PLATFORM_TOP_Y + CHARACTER_CENTER_HEIGHT + 0.05);
+    player.y = Math.fround(RAFT_DECK_Y + CHARACTER_CENTER_HEIGHT + 0.05);
     player.z = Math.fround(sz);
     player.vy = 0;
     player.mode = MoveMode.Airborne;
@@ -312,12 +354,15 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       const session = this.sessions.get(sessionId);
       if (session) this.records[session.playerId] = this.toRecord(player);
     }
+    const worldTime = this.worldTime();
+    const [worldX, worldZ] = raftWorldPosition(this.state.raft, worldTime);
     const snapshot: WorldSnapshot = {
       formatVersion: SAVE_FORMAT_VERSION,
       worldId: this.state.worldId,
-      worldTime: this.worldTime(),
+      worldTime,
       savedAt: new Date().toISOString(),
       players: this.records,
+      raft: { worldX, worldZ, lanternOn: this.state.raft.lanternOn },
     };
     try {
       await services().repository.saveWorld(snapshot);

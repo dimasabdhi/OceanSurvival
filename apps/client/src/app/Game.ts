@@ -1,20 +1,25 @@
 import {
   CALM_WAVES,
-  CHARACTER,
   DAY_LENGTH_SECONDS,
+  LANTERN_ID,
   PlayerName,
   type PlayerState,
+  RAFT_VELOCITY,
 } from "@oceansurvival/shared";
 import { effect } from "@preact/signals";
 import {
   ACESFilmicToneMapping,
+  Color,
   DirectionalLight,
   Euler,
+  FogExp2,
   HemisphereLight,
   PerspectiveCamera,
+  Quaternion,
   Scene,
   SRGBColorSpace,
   Timer,
+  Vector3,
   WebGLRenderer,
 } from "three";
 import { OceanBench } from "../bench/OceanBench";
@@ -22,6 +27,7 @@ import { loadIdentity, savePlayerName } from "../net/identity";
 import { type ConnectionEvent, type Pose, WorldConnection } from "../net/WorldConnection";
 import { FlyCamera } from "../player/FlyCamera";
 import { InputSampler } from "../player/InputSampler";
+import { aimedInteractable } from "../player/InteractionAim";
 import { DayNightCycle, phaseToClock } from "../render/DayNightCycle";
 import { DebugFloaters } from "../render/DebugFloaters";
 import { OceanRenderer } from "../render/ocean/OceanRenderer";
@@ -30,10 +36,13 @@ import { QUALITY_PRESETS, type QualityPreset, saveQualityPreset } from "../rende
 import { SkyDome } from "../render/SkyDome";
 import * as store from "../ui/store";
 import { PlayerViews } from "../world/PlayerViews";
-import { TestLevelView } from "../world/TestLevelView";
+import { Presentation } from "../world/Presentation";
+import { RaftSway } from "../world/RaftSway";
+import { RaftView } from "../world/RaftView";
 import type { LaunchParams } from "./params";
 
 const MAX_CHAT_LINES = 8;
+const UNDERWATER_FOG = new Color(0x0f4c5c);
 
 /**
  * Client shell. Two modes:
@@ -50,7 +59,13 @@ export class Game {
   private readonly sky = new SkyDome();
   private readonly ocean: OceanRenderer;
   private readonly floaters = new DebugFloaters(CALM_WAVES);
-  private readonly level = new TestLevelView();
+  private readonly raft = new RaftView();
+  private readonly sway = new RaftSway();
+  private readonly presentation = new Presentation(this.sway);
+  private readonly fog = new FogExp2(0xcfe6ee, 0.001);
+  private readonly raftWorld: [number, number] = [0, 0];
+  private readonly renderPos = new Vector3();
+  private readonly lookQuat = new Quaternion();
   private readonly playerViews: PlayerViews;
   private readonly sun = new DirectionalLight();
   private readonly hemi = new HemisphereLight();
@@ -92,7 +107,9 @@ export class Game {
     });
     this.playerViews = new PlayerViews(this.scene);
     this.scene.add(this.sky.mesh, this.ocean.mesh, this.floaters.mesh, this.sun, this.hemi);
-    this.scene.add(this.sun.target, this.level.group);
+    this.scene.add(this.sun.target, this.raft.group);
+    this.raft.group.matrixAutoUpdate = false;
+    this.scene.fog = this.fog;
 
     this.flyCamera = new FlyCamera(this.camera);
     this.perfMonitor = new PerfMonitor(this.renderer, (s) => {
@@ -121,6 +138,10 @@ export class Game {
         const s = 0.0022 * store.sensitivity.value;
         this.flyCamera.sensitivity = s;
         this.sampler.sensitivity = s;
+      }),
+      effect(() => {
+        this.sway.enabled = store.raftSway.value;
+        this.presentation.headBobEnabled = store.headBob.value;
       }),
       effect(() => {
         // Movement keys are ignored while typing in chat or when the mouse is free.
@@ -230,7 +251,7 @@ export class Game {
     this.flyCamera.dispose();
     this.sampler.dispose();
     this.playerViews.dispose();
-    this.level.dispose();
+    this.raft.dispose();
     this.ocean.dispose();
     this.sky.dispose();
     this.floaters.dispose();
@@ -264,6 +285,9 @@ export class Game {
         store.chatLog.value = [...store.chatLog.value, line].slice(-MAX_CHAT_LINES);
         break;
       }
+      case "interact-reject":
+        // The server disagreed (moved out of range / blocked); the prompt will update.
+        break;
       case "notice":
         if (e.notice.kind === "shutdown") {
           store.session.value = { ...store.session.value, reason: "shutdown" };
@@ -286,14 +310,26 @@ export class Game {
     } else if (conn) {
       // Contract: tick → send loop → read (WorldConnection.frame does tick + sends).
       conn.frame(timestamp, (out) => this.sampler.sample(out));
-      this.updatePlayers(conn);
       worldTime = conn.worldTime();
+      conn.raftWorld(worldTime, this.raftWorld);
+      this.sway.update(worldTime, this.raftWorld[0], this.raftWorld[1]);
+      this.raft.setLantern(conn.lanternOn);
+      this.updatePlayers(conn, dt, worldTime);
     } else {
       if (this.online) this.orbitMenuCamera(timestamp);
       else this.flyCamera.update(dt);
       this.localWorldTime += dt * store.timeSpeed.value;
       worldTime = this.localWorldTime;
+      // Offline/menu: the raft drifts from the world origin.
+      this.raftWorld[0] = RAFT_VELOCITY[0] * worldTime;
+      this.raftWorld[1] = RAFT_VELOCITY[1] * worldTime;
+      this.sway.update(worldTime, this.raftWorld[0], this.raftWorld[1]);
     }
+    this.raft.group.matrix.copy(this.sway.matrix);
+    this.raft.group.matrixWorldNeedsUpdate = true;
+    const [rx, rz] = this.raftWorld;
+    const isUnder = this.presentation.isUnderwater(this.camera.position, worldTime, rx, rz);
+    if (isUnder !== store.underwater.value) store.underwater.value = isUnder;
 
     this.cycle.update(worldTime);
     this.sun.position.copy(this.cycle.lightDirection).multiplyScalar(100).add(this.camera.position);
@@ -304,9 +340,22 @@ export class Game {
     this.hemi.groundColor.copy(this.cycle.current.ambientGround);
     this.hemi.intensity = this.cycle.current.ambientIntensity;
 
+    if (isUnder) {
+      this.fog.color
+        .copy(UNDERWATER_FOG)
+        .multiplyScalar(0.35 + 0.65 * Math.min(1, this.cycle.current.lightIntensity / 3));
+      this.fog.density = 0.07;
+    } else {
+      this.fog.color.copy(this.cycle.current.fog);
+      this.fog.density = this.cycle.current.fogDensity;
+    }
+
+    // Under water the sky is not visible: the fog color fills the background instead.
+    this.sky.mesh.visible = !isUnder;
+    this.scene.background = isUnder ? this.fog.color : null;
     this.sky.update(this.camera.position, this.cycle);
-    this.ocean.update(worldTime, this.camera, this.cycle);
-    this.floaters.update(worldTime, this.camera.position);
+    this.ocean.update(worldTime, this.camera, this.cycle, rx, rz, isUnder);
+    this.floaters.update(worldTime, this.camera.position, rx, rz);
 
     this.renderer.render(this.scene, this.camera);
     this.perfMonitor.frame(dt * 1000);
@@ -320,27 +369,53 @@ export class Game {
     store.clock.value = phaseToClock(this.cycle.phase);
   };
 
-  /** Camera = predicted local player; remotes = interpolated capsules. */
-  private updatePlayers(conn: WorldConnection): void {
+  /** Camera = predicted local player; remotes = interpolated capsules (raft frame). */
+  private updatePlayers(conn: WorldConnection, dt: number, worldTime: number): void {
+    const [rx, rz] = this.raftWorld;
     const local = conn.localPose(this.pose);
     if (local) {
-      this.camera.position.set(local.x, local.y + CHARACTER.eyeOffset, local.z);
       // Look direction comes straight from the mouse (no network delay).
       this.look.set(this.sampler.pitch, this.sampler.yaw, 0);
-      this.camera.quaternion.setFromEuler(this.look);
+      this.lookQuat.setFromEuler(this.look);
+      this.presentation.camera(
+        local,
+        this.lookQuat,
+        dt,
+        worldTime,
+        rx,
+        rz,
+        this.camera.position,
+        this.camera.quaternion,
+      );
+      // Interaction prompt (UX hint only; the server validates).
+      const target = store.pointerLocked.value
+        ? aimedInteractable(local, this.sampler.yaw, this.sampler.pitch)
+        : null;
+      const prompt =
+        target?.id === LANTERN_ID
+          ? {
+              targetId: target.id,
+              action: conn.lanternOn ? "Padamkan lentera" : "Nyalakan lentera",
+            }
+          : null;
+      if (
+        prompt?.targetId !== store.interactPrompt.value?.targetId ||
+        prompt?.action !== store.interactPrompt.value?.action
+      ) {
+        store.interactPrompt.value = prompt;
+      }
     }
     this.alive.clear();
     for (const [sessionId, player] of conn.room.state.players) {
       if (sessionId === conn.sessionId) continue;
       this.alive.add(sessionId);
       const p = player as PlayerState;
-      this.playerViews.update(
-        sessionId,
-        p.name,
-        p.playerId,
-        conn.readPose(p, this.pose),
-        p.connected,
-      );
+      const pose = conn.readPose(p, this.pose);
+      this.presentation.bodyPosition(pose, worldTime, rx, rz, this.renderPos);
+      pose.x = this.renderPos.x;
+      pose.y = this.renderPos.y;
+      pose.z = this.renderPos.z;
+      this.playerViews.update(sessionId, p.name, p.playerId, pose, p.connected);
     }
     this.playerViews.prune(this.alive);
 
@@ -364,8 +439,8 @@ export class Game {
   /** Slow orbit around the deck while in the menu. */
   private orbitMenuCamera(timestamp: number): void {
     const a = timestamp * 0.00005;
-    this.camera.position.set(Math.cos(a) * 14, 4, Math.sin(a) * 14);
-    this.camera.lookAt(0, 1, 0);
+    this.camera.position.set(Math.cos(a) * 9, 3, Math.sin(a) * 9);
+    this.camera.lookAt(0, 0.6, 0);
   }
 
   private applyQuality(preset: QualityPreset): void {
@@ -408,6 +483,14 @@ export class Game {
     ) {
       e.preventDefault();
       store.chatOpen.value = true;
+    } else if (
+      e.code === "KeyE" &&
+      this.connection &&
+      store.pointerLocked.value &&
+      !store.chatOpen.value
+    ) {
+      const prompt = store.interactPrompt.value;
+      if (prompt) this.connection.sendInteract(prompt.targetId);
     }
   };
 }

@@ -78,17 +78,26 @@ function prepared(set: WaveSet): PreparedWave[] {
   return p;
 }
 
-/** Per-wave travelling phase `k·c·t` wrapped to [0, 2π), computed in float64. */
+/**
+ * Per-wave phase `k·c·t − k·(d·origin)` wrapped to [0, 2π), computed in float64.
+ * With an origin, the shader samples waves at positions relative to that origin.
+ */
 export function computeWavePhases(
   set: WaveSet,
   timeSeconds: number,
   out?: Float32Array,
+  originX = 0,
+  originZ = 0,
 ): Float32Array {
   const waves = prepared(set);
   const result = out ?? new Float32Array(MAX_WAVES);
   result.fill(0);
   waves.forEach((w, i) => {
-    const phase = (w.k * w.speed * timeSeconds) % TWO_PI;
+    // The shader evaluates waves at LOCAL positions (relative to originX/Z, e.g. the
+    // drifting raft). Folding the origin into the phase here, in float64, keeps GPU
+    // precision independent of how far the raft has drifted.
+    const travel = w.k * w.speed * timeSeconds - w.k * (w.dx * originX + w.dz * originZ);
+    const phase = travel % TWO_PI;
     result[i] = phase < 0 ? phase + TWO_PI : phase;
   });
   return result;

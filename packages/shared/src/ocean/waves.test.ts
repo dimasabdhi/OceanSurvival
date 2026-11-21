@@ -59,3 +59,30 @@ describe("ocean waves", () => {
     ).toThrow(/steepness/);
   });
 });
+
+describe("wave origin offset (shader samples relative to the drifting raft)", () => {
+  it("phase with an origin equals evaluating at origin + local position", () => {
+    const originX = 12345.678;
+    const originZ = -98765.4321;
+    const t = 4321.5;
+    const withOrigin = computeWavePhases(CALM_WAVES, t, undefined, originX, originZ);
+    // Recompute the shader's formula on the CPU for a local point.
+    const local: [number, number] = [3.25, -1.5];
+    let height = 0;
+    CALM_WAVES.waves.forEach((w, i) => {
+      const len = Math.hypot(w.direction[0], w.direction[1]);
+      const k = (Math.PI * 2) / w.wavelength;
+      const f =
+        k * ((w.direction[0] / len) * local[0] + (w.direction[1] / len) * local[1]) -
+        (withOrigin[i] ?? 0);
+      height += (w.steepness / k) * Math.sin(f);
+    });
+    const [, expected] = gerstnerDisplacement(
+      CALM_WAVES,
+      originX + local[0],
+      originZ + local[1],
+      t,
+    );
+    expect(height).toBeCloseTo(expected, 4);
+  });
+});

@@ -90,3 +90,11 @@ export const netStats = signal<{ rttMs: number; corrAvgCm: number; corrMaxCm: nu
 );
 /** Player profile of this tab (see net/identity.ts acquireProfile). */
 export const profile = signal(1);
+
+// --- Phase 3: controller & raft ---------------------------------------------
+
+/** Interaction prompt for the aimed object (null = nothing in reach). */
+export const interactPrompt = signal<{ targetId: string; action: string } | null>(null);
+export const headBob = signal(true);
+export const raftSway = signal(true);
+export const underwater = signal(false);

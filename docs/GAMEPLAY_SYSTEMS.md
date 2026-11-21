@@ -12,6 +12,8 @@ Status: **Draft v1 (Phase 0)**. Dokumen ini adalah spesifikasi implementasi per 
 
 ---
 
+> **Implementasi Phase 3 (2026-11-21):** simulasi pemain dalam frame relatif-rakit (ADR-0014) dengan `stepCharacter`. Mode: Grounded/Airborne/Swimming/Diving. Menyelam = tahan **C** (2 m/s, maks 25 m); Space di bawah air = naik; lepas = mengapung 0,6 m/s; Space di permukaan = lompat keluar air (6,4 m/s). Perenang terbawa arus `WATER_FLOW` (0,6 m/s relatif rakit). Interaksi: `interact.use` divalidasi jarak ≤ 3,0 m dari mata (posisi server) + line of sight Rapier. Air gameplay rata (ombak visual saja). Jongkok belum ada (Deferred).
+
 ## A. Player System
 | Aspek | Spesifikasi |
 |---|---|

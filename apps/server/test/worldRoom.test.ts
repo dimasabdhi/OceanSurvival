@@ -3,8 +3,10 @@ import {
   CHARACTER_CENTER_HEIGHT,
   CloseCodes,
   DEFAULT_WORLD_ID,
+  LANTERN_ID,
+  MoveMode as Modes,
   MoveMode,
-  TEST_PLATFORM_TOP_Y,
+  RAFT_DECK_Y,
   WORLD_ROOM_NAME,
 } from "@oceansurvival/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -33,7 +35,8 @@ describe("WorldRoom", () => {
     const server = room.state.players.get(client.sessionId);
     expect(server?.name).toBe("Dimas");
     expect(server?.playerId).toBe(p.playerId);
-    expect(server?.y).toBeGreaterThan(TEST_PLATFORM_TOP_Y);
+    expect(server?.y).toBeGreaterThan(RAFT_DECK_Y);
+    expect(room.state.raft.velZ).toBeLessThan(0); // drifting (ADR-0014)
     await client.waitForNextPatch();
     expect(client.state.players.get(client.sessionId)?.name).toBe("Dimas");
   });
@@ -108,6 +111,36 @@ describe("WorldRoom", () => {
     expect(room.clients.length).toBe(4);
   });
 
+  it("interact.use toggles the lantern within range and line of sight", async () => {
+    const room = await createWorld(colyseus);
+    const client = await colyseus.connectTo(room, joinOptions(newPlayer()));
+    await waitFor(() => room.state.players.get(client.sessionId)?.mode === Modes.Grounded);
+    expect(room.state.raft.lanternOn).toBe(false);
+    client.send("interact.use", { targetId: LANTERN_ID });
+    await waitFor(() => room.state.raft.lanternOn === true);
+    client.send("interact.use", { targetId: LANTERN_ID });
+    await waitFor(() => room.state.raft.lanternOn === false);
+  });
+
+  it("interact.use is rejected when the SERVER position is out of range", async () => {
+    const room = await createWorld(colyseus);
+    const client = await colyseus.connectTo(room, joinOptions(newPlayer()));
+    await waitFor(() => room.state.players.get(client.sessionId)?.mode === Modes.Grounded);
+    const rejects: unknown[] = [];
+    client.onMessage("interact.reject", (m: unknown) => rejects.push(m));
+    // Teleport the player (server-side) 10 m away into the water.
+    const p = room.state.players.get(client.sessionId);
+    if (p) {
+      p.x = -10;
+      p.y = -0.55;
+      p.mode = Modes.Swimming;
+    }
+    client.send("interact.use", { targetId: LANTERN_ID });
+    await waitFor(() => rejects.length > 0);
+    expect(rejects[0]).toEqual({ targetId: LANTERN_ID, reason: "too-far" });
+    expect(room.state.raft.lanternOn).toBe(false);
+  });
+
   it("invalid message payload disconnects the client (4002)", async () => {
     const room = await createWorld(colyseus);
     const client = await colyseus.connectTo(room, joinOptions(newPlayer()));
@@ -158,7 +191,7 @@ describe("WorldRoom", () => {
     await waitFor(() => room.state.players.size === 0, 5000);
     const saved = await repository.loadWorld(DEFAULT_WORLD_ID);
     expect(saved?.players[p.playerId]?.position?.y).toBeCloseTo(
-      TEST_PLATFORM_TOP_Y + CHARACTER_CENTER_HEIGHT,
+      RAFT_DECK_Y + CHARACTER_CENTER_HEIGHT,
       1,
     );
   });
@@ -169,7 +202,7 @@ describe("WorldRoom", () => {
     const client = await colyseus.connectTo(room, joinOptions(p));
     await waitFor(() => room.state.players.get(client.sessionId)?.mode === MoveMode.Grounded);
     const input = client.input();
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 8; i++) {
       input.data.moveX = 1;
       input.data.moveZ = 0;
       input.data.yaw = 0;
@@ -177,7 +210,9 @@ describe("WorldRoom", () => {
       input.data.buttons = 0;
       input.send();
     }
-    await waitFor(() => (room.state.players.get(client.sessionId)?.x ?? 0) > 1.5);
+    const x0 = room.state.players.get(client.sessionId)?.x ?? 0;
+    await waitFor(() => (room.state.players.get(client.sessionId)?.x ?? 0) > x0 + 0.4);
+    await sleep(100);
     const x = room.state.players.get(client.sessionId)?.x ?? 0;
     await room.onBeforeShutdown();
     await waitFor(() => colyseus.getRoomById(room.roomId) === undefined, 5000).catch(
