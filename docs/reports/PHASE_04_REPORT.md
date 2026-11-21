@@ -1,6 +1,6 @@
 # Completion Report — Phase 4 (Ocean & Floating Resources)
 
-Tanggal: 2026-11-21 · Status: **Selesai secara teknis, menunggu uji manual & persetujuan owner** · Branch: `main`
+Tanggal: 2026-11-21 · Status: **Selesai & disetujui owner (2026-11-21)** — jumlah debris dan tampilan laut/langit dinilai pas · Branch: `main`
 
 ## 1. Ringkasan
 Laut kini berisi **debris yang di-spawn oleh server** (kayu apung, plastik, rumput laut, tong, kelapa), menggantikan kotak placeholder. Debris muncul di depan rakit, hanyut melewatinya, lalu menghilang di belakang. Semua pemain melihat debris yang sama di tempat yang sama. Tampilan laut dan langit juga dipoles: busa ombak berupa guratan, puncak ombak berpendar saat menghadap cahaya, serta ada bintang dan bulan di malam hari. Selain itu sebuah bug "kedipan cahaya" saat senja ditemukan lewat test baru dan sudah diperbaiki.

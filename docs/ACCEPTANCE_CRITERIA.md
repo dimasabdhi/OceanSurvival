@@ -48,7 +48,7 @@ Status: **Draft v1 (Phase 0)**. Kriteria phase yang jauh (≥ 9) akan diperinci 
 - [x] Prompt interaksi muncul pada objek interaktif ≤ 2.5 m; aksi di luar 3.0 m (posisi server) ditolak (integration + E2E Chrome/Edge).
 - [x] Pause & settings (sensitivitas, FOV, preset grafik, goyangan kepala, goyangan rakit) tersimpan per browser (E2E).
 
-## Phase 4 — Ocean & floating resources (bukti: [PHASE_04_REPORT](reports/PHASE_04_REPORT.md))
+## Phase 4 — Ocean & floating resources ✅ (disetujui owner 2026-11-21; bukti: [PHASE_04_REPORT](reports/PHASE_04_REPORT.md))
 - [x] Tinggi gelombang client & server untuk (x,z,t) sama (selisih < 1 mm, test) — satu fungsi shared + test formula shader (juga dengan origin rakit 100 km).
 - [x] Debris spawn hulu, hanyut, despawn sesuai GAMEPLAY_SYSTEMS §C; maks 60 aktif per rakit (unit + integration test).
 - [x] Debris di luar 120 m tidak dikirim ke client (StateView asli, integration test).

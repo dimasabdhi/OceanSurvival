@@ -3,7 +3,7 @@
 Project: **OceanSurvival** (nama kerja). Game survival-lautan 3D first-person, co-op 2–4 pemain, berjalan di browser desktop (Chrome/Edge). Terinspirasi *jenis* gameplay Raft, tetapi seluruh identitas, aset, nama, cerita, dan kode **orisinal**.
 
 ## Status saat ini
-- Phase 0 ✅ · Phase 1 ✅ · Phase 3 ✅ · **Phase 4 (laut & debris hanyut) selesai, menunggu review owner** — [laporan](docs/reports/PHASE_04_REPORT.md). Phase 5 hanya setelah owner menyetujui.
+- Phase 0 ✅ · Phase 1 ✅ · Phase 4 ✅ ([laporan](docs/reports/PHASE_04_REPORT.md)) · **Phase 5 (hook) sedang dikerjakan**.
 - PLACEHOLDER aktif: `RaftView` (rakit prosedural; layout tetap `START_RAFT_CELLS` sampai building Phase 7), `PlayerViews` (kapsul), `DebrisRenderer` (bentuk debris prosedural), `physics-spike` (regresi determinisme Rapier, dipertahankan).
 - **Frame rakit (ADR-0014)**: semua simulasi pemain dalam koordinat relatif-rakit; air mengalir `WATER_FLOW`; posisi rakit di dunia hanya untuk render (`raftWorldPosition`). Goyangan rakit/ombak = visual saja (`world/Presentation.ts`, `RaftSway.ts`). Jangan memasukkan waktu/posisi dunia ke `stepCharacter`.
 - **Debris**: statis di frame dunia (`worldX/worldZ/spawnTime`), tidak pernah diupdate per tick; client merender `world − raftWorld(t)`. Server: `sim/DebrisSystem.ts` (spawn/despawn/AOI via `StateView`, koleksi `debris` bertanda `.view()`). Tidak disimpan di save (di-prefill saat room dibuat).
