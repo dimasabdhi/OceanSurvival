@@ -1,6 +1,6 @@
 # Completion Report — Phase 3 (First-person Controller & Starting Raft)
 
-Tanggal: 2026-11-21 · Status: **Selesai secara teknis, menunggu uji manual & persetujuan owner** · Branch: `main`
+Tanggal: 2026-11-21 · Status: **Selesai & disetujui owner (2026-11-21)** — uji manual §5 berhasil · Branch: `main`
 
 ## 1. Ringkasan
 Dek uji diganti dengan **rakit 2×2 yang hanyut** di laut (0,6 m/s). Pemain bisa berjalan, lari, dan lompat di atasnya. Kalau jatuh ke laut, pemain terbawa arus dan rakit menjauh, sehingga ia harus berenang mengejar lalu melompat naik lagi. Pemain juga bisa menyelam dan melihat permukaan laut dari bawah. Rakit bergoyang oleh ombak, dan di sudutnya ada lentera yang bisa dinyalakan dengan **E**.
