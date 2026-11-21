@@ -22,6 +22,7 @@ Status: **Draft v1 (Phase 0)** · ADR: [0004](adr/0004-colyseus-018-authoritativ
 > | Rate limit | `chat.send`: burst 3, 1/s; 50 pelanggaran → tutup `4101`. Payload salah → `4002` (bawaan `validate`). |
 > | Reconnect | Grace `RECONNECT_GRACE_SECONDS` (30 s). Catatan SDK: auto-reconnect tidak dicoba bila koneksi < 5 s (`minUptime`). |
 > | World time | `state.timeOrigin + room.clock.serverNow()/1000` di client; disimpan saat save. |
+> | Debris (Phase 4) | `state.debris` (`t.map(Debris).view()`): posisi dunia + waktu spawn saja; client menghitung posisi & ombak sendiri → bandwidth stabil ±8 kbps/pemain dengan 57 debris. AOI 120 m via `StateView` (diuji dengan StateView asli). |
 > | Pesan aktif Phase 2 | input (`room.input()`), `chat.send`; server → `chat`, `server.notice`. |
 
 ## 1. Prinsip

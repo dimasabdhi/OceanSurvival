@@ -6,4 +6,5 @@ export * from "./movement/constants";
 export * from "./ocean/waves";
 export * from "./protocol/world";
 export * from "./state/worldState";
+export * from "./world/debris";
 export * from "./world/raft";

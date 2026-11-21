@@ -141,6 +141,28 @@ describe("WorldRoom", () => {
     expect(room.state.raft.lanternOn).toBe(false);
   });
 
+  it("debris: prefilled on create, sent to nearby players only (StateView AOI)", async () => {
+    const room = await createWorld(colyseus);
+    expect(room.state.debris.size).toBeGreaterThan(20);
+    const near = await colyseus.connectTo(room, joinOptions(newPlayer("Near")));
+    const far = await colyseus.connectTo(room, joinOptions(newPlayer("Far")));
+    await waitFor(() => near.state.debris?.size > 20);
+    // Move "Far" 190 m sideways (server-side), beyond the 120 m AOI of every piece.
+    const p = room.state.players.get(far.sessionId);
+    if (p) {
+      p.x = 190;
+      p.y = -0.55;
+      p.mode = Modes.Swimming;
+    }
+    await waitFor(() => far.state.debris?.size === 0, 5000);
+    expect(near.state.debris.size).toBeGreaterThan(20);
+    // A replicated piece carries world position + spawn time only (no per-tick movement).
+    const sample = [...near.state.debris.values()][0];
+    expect(Object.keys(sample?.toJSON() ?? {}).sort()).toEqual(
+      ["kind", "spawnTime", "worldX", "worldZ", "yaw"].sort(),
+    );
+  });
+
   it("invalid message payload disconnects the client (4002)", async () => {
     const room = await createWorld(colyseus);
     const client = await colyseus.connectTo(room, joinOptions(newPlayer()));

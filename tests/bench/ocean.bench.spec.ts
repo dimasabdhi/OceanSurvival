@@ -4,12 +4,13 @@ import { expect, test } from "@playwright/test";
 
 const seconds = Number(process.env.BENCH_SECONDS ?? 60);
 const quality = process.env.BENCH_QUALITY ?? "high";
+const scene = process.env.BENCH_SCENE ?? "ocean";
 const runs = Number(process.env.BENCH_RUNS ?? 3);
 
-test(`ocean benchmark (${runs}× ${seconds}s, quality ${quality})`, async ({ page }) => {
+test(`${scene} benchmark (${runs}× ${seconds}s, quality ${quality})`, async ({ page }) => {
   const results: unknown[] = [];
   for (let i = 0; i < runs; i++) {
-    await page.goto(`/?bench=ocean&seconds=${seconds}&quality=${quality}`);
+    await page.goto(`/?bench=${scene}&seconds=${seconds}&quality=${quality}&net=0`);
     await page.waitForFunction(
       () => (window as unknown as { __OCEAN_BENCH__?: unknown }).__OCEAN_BENCH__,
       null,
@@ -28,7 +29,7 @@ test(`ocean benchmark (${runs}× ${seconds}s, quality ${quality})`, async ({ pag
   const median = fps[Math.floor(fps.length / 2)];
   const summary = { date: new Date().toISOString(), runs: results, medianFpsAvg: median };
   mkdirSync("bench-results", { recursive: true });
-  const file = join("bench-results", `ocean-${quality}-${Date.now()}.json`);
+  const file = join("bench-results", `${scene}-${quality}-${Date.now()}.json`);
   writeFileSync(file, JSON.stringify(summary, null, 2));
   console.log(JSON.stringify(summary, null, 2));
   console.log(`Saved ${file}`);

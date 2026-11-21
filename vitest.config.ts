@@ -9,6 +9,8 @@ export default defineConfig({
       "apps/server/test/**/*.test.ts",
       "tools/**/*.test.ts",
       "tests/integration/**/*.test.ts",
+      // Client logic that does not need a browser (pure math / three.js math types).
+      "apps/client/src/**/*.test.ts",
     ],
     environment: "node",
     testTimeout: 20_000,

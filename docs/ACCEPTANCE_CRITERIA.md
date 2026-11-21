@@ -48,11 +48,11 @@ Status: **Draft v1 (Phase 0)**. Kriteria phase yang jauh (≥ 9) akan diperinci 
 - [x] Prompt interaksi muncul pada objek interaktif ≤ 2.5 m; aksi di luar 3.0 m (posisi server) ditolak (integration + E2E Chrome/Edge).
 - [x] Pause & settings (sensitivitas, FOV, preset grafik, goyangan kepala, goyangan rakit) tersimpan per browser (E2E).
 
-## Phase 4 — Ocean & floating resources
-- [ ] Tinggi gelombang client & server untuk (x,z,t) sama (selisih < 1 mm, test).
-- [ ] Debris spawn hulu, hanyut, despawn sesuai GAMEPLAY_SYSTEMS §C; maks 60 aktif per rakit.
-- [ ] Debris di luar 120 m tidak dikirim ke client (StateView test).
-- [ ] Siklus siang–malam 24 menit lengkap tanpa artefak; `?bench=full4p` ≥ 60 FPS.
+## Phase 4 — Ocean & floating resources (bukti: [PHASE_04_REPORT](reports/PHASE_04_REPORT.md))
+- [x] Tinggi gelombang client & server untuk (x,z,t) sama (selisih < 1 mm, test) — satu fungsi shared + test formula shader (juga dengan origin rakit 100 km).
+- [x] Debris spawn hulu, hanyut, despawn sesuai GAMEPLAY_SYSTEMS §C; maks 60 aktif per rakit (unit + integration test).
+- [x] Debris di luar 120 m tidak dikirim ke client (StateView asli, integration test).
+- [x] Siklus siang–malam 24 menit tanpa artefak (test kontinuitas 4.000 titik; menemukan & memperbaiki loncatan cahaya matahari→bulan); `?bench=full4p` ≥ 60 FPS (164,7 FPS, vsync).
 
 ## Phase 5 — Hook gameplay
 - [ ] Lempar dengan charge, jarak maks 25 m, tarik, ambil debris (maks 3), item masuk inventory sementara (tanpa UI penuh).

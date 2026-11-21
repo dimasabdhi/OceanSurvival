@@ -88,7 +88,13 @@ Uji beban server dengan bot (butuh `pnpm dev` berjalan di terminal lain; default
 ```powershell
 pnpm load-test
 ```
-Versi singkat 2 menit dengan 8 bot:
+Benchmark scene lengkap (rakit + 3 pemain + 60 debris):
+```powershell
+$env:BENCH_SCENE="full4p"; pnpm bench:ocean
+```
+Atau buka `http://localhost:5173/?bench=full4p&net=0` di browser.
+
+Versi singkat uji beban, 2 menit dengan 8 bot:
 ```powershell
 $env:BOTS=8; $env:DURATION_SECONDS=120; pnpm load-test
 ```

@@ -102,12 +102,11 @@ export class DayNightCycle {
       .normalize();
 
     const elevation = this.sunDirection.y;
-    if (elevation > -0.05) {
-      this.lightDirection.copy(this.sunDirection);
-      if (this.lightDirection.y < 0.05) this.lightDirection.y = 0.05;
-    } else {
-      this.lightDirection.copy(this.sunDirection).negate(); // moon opposite the sun
-    }
+    // Main light: the sun by day, the moon (opposite) by night. The switch happens at
+    // the horizon where the light is faded to ~0 (see below), so it never "pops".
+    if (elevation >= 0) this.lightDirection.copy(this.sunDirection);
+    else this.lightDirection.copy(this.sunDirection).negate();
+    if (this.lightDirection.y < 0.05) this.lightDirection.y = 0.05;
     this.lightDirection.normalize();
 
     // Blend keyframes by sun elevation.
@@ -116,6 +115,8 @@ export class DayNightCycle {
     const out = this.current;
     lerpKeyframe(out, DUSK, DAY, dayT);
     if (nightT > 0) lerpKeyframe(out, out, NIGHT, nightT);
+    // Fade the directional light out around the horizon (sun ↔ moon hand-over).
+    out.lightIntensity *= MathUtils.smoothstep(Math.abs(elevation), 0.0, 0.1);
   }
 }
 

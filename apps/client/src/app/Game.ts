@@ -29,12 +29,13 @@ import { FlyCamera } from "../player/FlyCamera";
 import { InputSampler } from "../player/InputSampler";
 import { aimedInteractable } from "../player/InteractionAim";
 import { DayNightCycle, phaseToClock } from "../render/DayNightCycle";
-import { DebugFloaters } from "../render/DebugFloaters";
 import { OceanRenderer } from "../render/ocean/OceanRenderer";
 import { PerfMonitor } from "../render/PerfMonitor";
 import { QUALITY_PRESETS, type QualityPreset, saveQualityPreset } from "../render/quality";
 import { SkyDome } from "../render/SkyDome";
 import * as store from "../ui/store";
+import { DebrisRenderer } from "../world/DebrisRenderer";
+import { LocalDebrisField } from "../world/localDebris";
 import { PlayerViews } from "../world/PlayerViews";
 import { Presentation } from "../world/Presentation";
 import { RaftSway } from "../world/RaftSway";
@@ -58,7 +59,9 @@ export class Game {
   private readonly cycle = new DayNightCycle();
   private readonly sky = new SkyDome();
   private readonly ocean: OceanRenderer;
-  private readonly floaters = new DebugFloaters(CALM_WAVES);
+  private readonly debrisRenderer = new DebrisRenderer();
+  /** Offline/menu/bench debris (online uses the replicated state). */
+  private readonly localDebris = new LocalDebrisField();
   private readonly raft = new RaftView();
   private readonly sway = new RaftSway();
   private readonly presentation = new Presentation(this.sway);
@@ -106,7 +109,7 @@ export class Game {
       radius: preset.viewDistance,
     });
     this.playerViews = new PlayerViews(this.scene);
-    this.scene.add(this.sky.mesh, this.ocean.mesh, this.floaters.mesh, this.sun, this.hemi);
+    this.scene.add(this.sky.mesh, this.ocean.mesh, this.debrisRenderer.group, this.sun, this.hemi);
     this.scene.add(this.sun.target, this.raft.group);
     this.raft.group.matrixAutoUpdate = false;
     this.scene.fog = this.fog;
@@ -115,7 +118,10 @@ export class Game {
     this.perfMonitor = new PerfMonitor(this.renderer, (s) => {
       store.perf.value = s;
     });
-    this.bench = params.bench ? new OceanBench(params.benchSeconds, store.quality.value) : null;
+    this.bench = params.bench
+      ? new OceanBench(params.benchSeconds, store.quality.value, params.bench)
+      : null;
+    if (params.bench === "full4p") this.addBenchPlayers();
     this.localWorldTime = this.bench
       ? this.bench.worldTime
       : DAY_LENGTH_SECONDS * store.timeOfDayPhase.value;
@@ -254,7 +260,7 @@ export class Game {
     this.raft.dispose();
     this.ocean.dispose();
     this.sky.dispose();
-    this.floaters.dispose();
+    this.debrisRenderer.dispose();
     this.timer.dispose();
     this.renderer.dispose();
     this.renderer.domElement.remove();
@@ -306,7 +312,12 @@ export class Game {
     let worldTime: number;
     if (this.bench) {
       this.bench.driveCamera(this.camera);
+      // Time runs during the benchmark so waves, debris and sway really animate.
+      this.localWorldTime += dt;
       worldTime = this.localWorldTime;
+      this.raftWorld[0] = RAFT_VELOCITY[0] * worldTime;
+      this.raftWorld[1] = RAFT_VELOCITY[1] * worldTime;
+      this.sway.update(worldTime, this.raftWorld[0], this.raftWorld[1]);
     } else if (conn) {
       // Contract: tick → send loop → read (WorldConnection.frame does tick + sends).
       conn.frame(timestamp, (out) => this.sampler.sample(out));
@@ -355,7 +366,8 @@ export class Game {
     this.scene.background = isUnder ? this.fog.color : null;
     this.sky.update(this.camera.position, this.cycle);
     this.ocean.update(worldTime, this.camera, this.cycle, rx, rz, isUnder);
-    this.floaters.update(worldTime, this.camera.position, rx, rz);
+    const debris = conn ? conn.room.state.debris.values() : this.localDebris.update(worldTime);
+    this.debrisRenderer.update(debris, worldTime, rx, rz, this.camera.position);
 
     this.renderer.render(this.scene, this.camera);
     this.perfMonitor.frame(dt * 1000);
@@ -364,7 +376,7 @@ export class Game {
     if (result) {
       store.bench.value = { running: false, result };
       window.__OCEAN_BENCH__ = result;
-      console.info("[bench] ocean", JSON.stringify(result));
+      console.info(`[bench] ${result.scene}`, JSON.stringify(result));
     }
     store.clock.value = phaseToClock(this.cycle.phase);
   };
@@ -434,6 +446,25 @@ export class Game {
         rttMs: conn.rttMs(),
       };
     }
+  }
+
+  /** Benchmark "full4p": three other players standing on the raft + lantern on. */
+  private addBenchPlayers(): void {
+    const spots: [number, number][] = [
+      [-0.6, -0.6],
+      [0.6, -0.6],
+      [-0.6, 0.6],
+    ];
+    spots.forEach(([x, z], i) => {
+      this.playerViews.update(
+        `bench-${i}`,
+        `Pemain ${i + 2}`,
+        `benchplayer000${i}`,
+        { x, y: 1.15, z, yaw: i * 2, pitch: 0, mode: 0 },
+        true,
+      );
+    });
+    this.raft.setLantern(true);
   }
 
   /** Slow orbit around the deck while in the menu. */

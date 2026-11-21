@@ -21,7 +21,13 @@ uniform vec3 uBelow;
 uniform vec3 uSunDir;
 uniform vec3 uSunColor;
 uniform float uSunVisible;
+uniform float uNight;
+uniform vec3 uMoonDir;
 varying vec3 vDir;
+
+float starHash(vec3 p) {
+  return fract(sin(dot(p, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+}
 
 void main() {
   vec3 dir = normalize(vDir);
@@ -32,6 +38,17 @@ void main() {
   float glow = pow(d, 8.0) * 0.35 + pow(d, 64.0) * 0.6;
   float disc = smoothstep(0.9993, 0.9996, d);
   sky += uSunColor * (glow + disc * 4.0) * uSunVisible;
+
+  // Night: sparse twinkle-free stars above the horizon + a pale moon.
+  if (uNight > 0.0 && h > 0.0) {
+    vec3 cell = floor(dir * 180.0);
+    float star = step(0.9965, starHash(cell));
+    float brightness = 0.5 + 0.5 * starHash(cell + 7.0);
+    sky += vec3(0.85, 0.9, 1.0) * star * brightness * uNight * smoothstep(0.0, 0.25, h);
+  }
+  float m = max(dot(dir, normalize(uMoonDir)), 0.0);
+  float moon = smoothstep(0.9990, 0.9994, m);
+  sky += vec3(0.86, 0.9, 0.95) * (moon * 1.6 + pow(m, 40.0) * 0.12) * uNight;
   gl_FragColor = vec4(sky, 1.0);
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
@@ -47,6 +64,8 @@ export class SkyDome {
     uSunDir: { value: new Vector3(0, 1, 0) },
     uSunColor: { value: new Color() },
     uSunVisible: { value: 1 },
+    uNight: { value: 0 },
+    uMoonDir: { value: new Vector3(0, -1, 0) },
   };
 
   constructor(radius = 3000) {
@@ -73,6 +92,9 @@ export class SkyDome {
     u.uSunDir.value.copy(cycle.sunDirection);
     u.uSunColor.value.copy(k.light);
     u.uSunVisible.value = cycle.sunDirection.y > -0.05 ? 1 : 0;
+    // Stars/moon fade in as the sun sets below the horizon.
+    u.uNight.value = Math.min(1, Math.max(0, (-cycle.sunDirection.y - 0.02) / 0.2));
+    u.uMoonDir.value.copy(cycle.sunDirection).negate();
   }
 
   dispose(): void {

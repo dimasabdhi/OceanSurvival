@@ -5,6 +5,8 @@
  * (ADR-0013): clients only send `PlayerInput`; this room consumes them in a fixed
  * 60 Hz step with the SAME `stepCharacter` the client predicts with.
  */
+
+import { StateView } from "@colyseus/schema";
 import {
   CHARACTER,
   CHARACTER_CENTER_HEIGHT,
@@ -47,6 +49,7 @@ import {
   type WorldSnapshot,
 } from "../persistence/WorldRepository";
 import { services } from "../services";
+import { type AoiViewer, DebrisSystem } from "../sim/DebrisSystem";
 
 /** Inputs a player may "bank" after a gap (burst catch-up); sustained rate stays 1/tick. */
 const MAX_INPUT_CREDIT = 4;
@@ -70,6 +73,8 @@ const RATE_LIMITS = {
  * brought back to the raft. Safety net until oxygen/death exist (Phase 9).
  */
 const MAX_DISTANCE_FROM_RAFT = 200;
+/** Debris AOI refresh: every 4 ticks (15 Hz) — MULTIPLAYER_DESIGN §8.2. */
+const AOI_EVERY_N_TICKS = 4;
 
 /**
  * Worlds that currently have a room in this process. A world must never run in two
@@ -96,6 +101,8 @@ interface Session {
   ticksWithoutInput: number;
   limiter: SessionRateLimiter;
   bytes: ByteCounter | null;
+  /** Per-client filtered view (debris AOI). */
+  view: StateView;
 }
 
 export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
@@ -140,6 +147,9 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
   };
 
   private movement!: MovementWorld;
+  private debris!: DebrisSystem;
+  private tick = 0;
+  private readonly viewers: AoiViewer[] = [];
   private readonly sessions = new Map<string, Session>();
   private readonly clientByPlayer = new Map<string, Client>();
   private records: Record<string, PlayerRecord> = {};
@@ -171,6 +181,9 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     raft.velX = RAFT_VELOCITY[0];
     raft.velZ = RAFT_VELOCITY[1];
     raft.lanternOn = snapshot?.raft.lanternOn ?? false;
+    // Debris is not saved (DATABASE_DESIGN §2): regenerate an already-populated ocean.
+    this.debris = new DebrisSystem(this.state, worldId);
+    this.debris.prefill(this.worldTime());
     this.setMetadata({ worldId });
 
     this.setFixedTimestep((ctx) => this.step(ctx.dt), SIM_TICK_RATE);
@@ -218,7 +231,10 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     }
     this.state.players.set(client.sessionId, player);
     this.clientByPlayer.set(auth.playerId, client);
+    const view = new StateView();
+    client.view = view;
     this.sessions.set(client.sessionId, {
+      view,
       playerId: auth.playerId,
       body: this.movement.createCharacter(),
       credit: 0,
@@ -228,6 +244,8 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       bytes: services().config.DEBUG_ROUTES ? countOutgoingBytes(client) : null,
     });
     this.records[auth.playerId] = this.toRecord(player);
+    // Show nearby debris right away (not only at the next AOI refresh).
+    this.debris.updateViews(this.worldTime(), [{ view, x: player.x, z: player.z }]);
     logger.info(
       `[world ${this.state.worldId}] ${auth.name} joined (${this.clients.length} online)`,
     );
@@ -244,6 +262,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
     if (player) player.connected = true;
     const session = this.sessions.get(client.sessionId);
     if (session) {
+      client.view = session.view;
       session.credit = 0;
       if (services().config.DEBUG_ROUTES) session.bytes = countOutgoingBytes(client);
     }
@@ -299,7 +318,23 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
         this.placeAtSpawn(player);
       }
     }
+    this.updateWorld(dt);
     this.tickStats.record(performance.now() - started);
+  }
+
+  /** Debris spawning/despawning + per-client AOI. */
+  private updateWorld(dt: number): void {
+    const worldTime = this.worldTime();
+    let connected = 0;
+    for (const p of this.state.players.values()) if (p.connected) connected++;
+    this.debris.update(worldTime, dt, connected);
+    if (++this.tick % AOI_EVERY_N_TICKS !== 0) return;
+    this.viewers.length = 0;
+    for (const [sessionId, session] of this.sessions) {
+      const p = this.state.players.get(sessionId);
+      if (p) this.viewers.push({ view: session.view, x: p.x, z: p.z });
+    }
+    this.debris.updateViews(worldTime, this.viewers);
   }
 
   private rateLimit(client: Client, type: keyof typeof RATE_LIMITS): boolean {
@@ -389,6 +424,7 @@ export class WorldRoom extends Room<{ state: WorldState; input: PlayerInput }> {
       worldId: this.state.worldId,
       roomId: this.roomId,
       players: this.state.players.size,
+      debris: this.state.debris.size,
       tick: this.tickStats.summary(),
       clients,
       memoryMB: Math.round(process.memoryUsage().rss / 1e6),

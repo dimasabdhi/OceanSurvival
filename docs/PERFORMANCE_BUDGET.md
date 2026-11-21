@@ -74,6 +74,15 @@ Status: **Draft v1 (Phase 0)**. Angka di bawah adalah **target desain**, bukan k
 4. Server: bot load test N klien 10 menit → tick avg/p95/max, bandwidth per client.
 5. Regresi > 10% dibanding baseline phase sebelumnya = blocker untuk acceptance.
 
+## 7a. Hasil terukur (reference PC)
+| Phase | Skenario | Hasil |
+|---|---|---|
+| 1 | `?bench=ocean` High 1080p | 164,9 FPS (vsync 165 Hz), 3 draw calls, 126.720 tris |
+| 2 | 4 bot × 10 menit | tick avg 0,025 ms / p95 0,066 / maks 0,54; 7,4 kbps/pemain |
+| 3 | 4 bot × 60 s (rakit + LOS) | tick avg 0,023 ms; 8,6 kbps |
+| 4 | `?bench=full4p` High 1080p (rakit, 3 pemain, 60 debris, lentera) | 164,7 FPS (vsync), 63 draw calls, 129.786 tris |
+| 4 | 4 bot × 90 s, 57 debris | tick avg 0,045 ms / p95 0,099 / maks 0,96; 8,1 kbps |
+
 ## 8. Checkpoint per phase
 | Phase | Benchmark wajib |
 |---|---|

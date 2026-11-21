@@ -13,6 +13,7 @@ import {
   type PerspectiveCamera,
   ShaderMaterial,
   Sphere,
+  Vector2,
   Vector3,
 } from "three";
 import type { DayNightCycle } from "../DayNightCycle";
@@ -123,10 +124,27 @@ uniform float uFogDensity;
 uniform float uUnderwater;
 uniform vec3 uUnderwaterColor;
 uniform float uUnderwaterDensity;
+/** Render-origin world position modulo NOISE_PERIOD (keeps foam anchored to the water). */
+uniform vec2 uNoiseOrigin;
 varying vec3 vWorldPos;
 varying vec3 vNormal;
 varying float vCrest;
 varying float vHeight;
+
+const float NOISE_PERIOD = 256.0;
+
+float hash2(vec2 p) {
+  p = mod(p, NOISE_PERIOD);
+  return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+}
+
+float valueNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash2(i), hash2(i + vec2(1.0, 0.0)), u.x),
+             mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), u.x), u.y);
+}
 
 void main() {
   vec3 n = normalize(vNormal);
@@ -163,9 +181,16 @@ void main() {
   float spec = pow(max(dot(n, h), 0.0), 240.0) * 2.5;
   col += uSunColor * spec * uSunVisible;
 
-  // Crest foam.
-  float foam = smoothstep(0.15, 0.25, vCrest) * (1.0 - smoothstep(150.0, 400.0, dist));
-  col = mix(col, uFoam * uFoamLevel, foam * 0.6);
+  // Light through thin crests facing away from the sun (subsurface glow).
+  float sss = pow(max(dot(v, -uSunDir), 0.0), 3.0) * clamp(vHeight * 1.6, 0.0, 1.0);
+  col += uShallow * sss * 0.35 * uSunVisible;
+
+  // Crest foam, broken up by world-anchored noise so it reads as streaks, not blobs.
+  vec2 wp = vWorldPos.xz + uNoiseOrigin;
+  float foamNoise = valueNoise(wp * 0.35) * 0.65 + valueNoise(wp * 1.7) * 0.35;
+  float crestMask = smoothstep(0.11, 0.24, vCrest + (foamNoise - 0.5) * 0.12);
+  float foam = crestMask * smoothstep(0.45, 0.75, foamNoise) * (1.0 - smoothstep(120.0, 350.0, dist));
+  col = mix(col, uFoam * uFoamLevel, foam * 0.7);
 
   // Exponential-squared fog toward the horizon color.
   float fogF = 1.0 - exp(-pow(uFogDensity * dist, 2.0));
@@ -178,6 +203,10 @@ void main() {
   #include <colorspace_fragment>
 }
 `;
+
+function mod(v: number, m: number): number {
+  return ((v % m) + m) % m;
+}
 
 export class OceanRenderer {
   readonly mesh: Mesh<BufferGeometry, ShaderMaterial>;
@@ -201,6 +230,7 @@ export class OceanRenderer {
     uUnderwater: { value: 0 },
     uUnderwaterColor: { value: new Color(0x0f4c5c) },
     uUnderwaterDensity: { value: 0.08 },
+    uNoiseOrigin: { value: new Vector2() },
   };
 
   constructor(
@@ -240,6 +270,8 @@ export class OceanRenderer {
   ): void {
     computeWavePhases(this.waves, worldTimeSeconds, this.phases, originX, originZ);
     this.uniforms.uUnderwater.value = underwater ? 1 : 0;
+    // Wrap in float64 on the CPU so the GPU only sees small numbers (NOISE_PERIOD = 256).
+    this.uniforms.uNoiseOrigin.value.set(mod(originX, 256), mod(originZ, 256));
     this.mesh.position.set(camera.position.x, 0, camera.position.z);
     const u = this.uniforms;
     const k = cycle.current;

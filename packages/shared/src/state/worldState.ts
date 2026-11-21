@@ -45,6 +45,24 @@ export const RaftState = schema(
 );
 export type RaftState = SchemaType<typeof RaftState>;
 
+/**
+ * A floating debris piece (GAMEPLAY_SYSTEMS §C). Static in the WORLD (it floats with the
+ * water); clients render it at world − raftWorld(t). Nothing changes after spawning.
+ */
+export const Debris = schema(
+  {
+    kind: t.uint8(),
+    worldX: t.float64(),
+    worldZ: t.float64(),
+    /** World time of spawning (fade-in, lifetime). */
+    spawnTime: t.float64(),
+    /** Visual yaw (radians). */
+    yaw: t.float32(),
+  },
+  "Debris",
+);
+export type Debris = SchemaType<typeof Debris>;
+
 export const WorldState = schema(
   {
     worldId: t.string(),
@@ -53,6 +71,8 @@ export const WorldState = schema(
     /** Keyed by Colyseus sessionId. */
     players: t.map(PlayerState),
     raft: t.ref(RaftState),
+    /** Per-client filtered by distance (StateView AOI, DEBRIS.aoiRadius). Keyed by id. */
+    debris: t.map(Debris).view(),
   },
   "WorldState",
 );

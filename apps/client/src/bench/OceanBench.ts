@@ -19,6 +19,7 @@ export class OceanBench {
   constructor(
     private readonly seconds: number,
     private readonly quality: QualityPreset,
+    readonly scene: "ocean" | "full4p" = "ocean",
   ) {}
 
   /** Fixed noon-ish world time for comparable results. */
@@ -27,6 +28,13 @@ export class OceanBench {
   /** Moves the camera along the fixed path. */
   driveCamera(camera: PerspectiveCamera): void {
     const t = this.elapsed;
+    if (this.scene === "full4p") {
+      // Orbit the raft at deck-eye height, looking across it (raft, players, debris).
+      const a = t * 0.2;
+      camera.position.set(Math.cos(a) * 7, 2.2 + Math.sin(t * 0.4) * 0.6, Math.sin(a) * 7);
+      camera.lookAt(-Math.cos(a) * 20, 0.2, -Math.sin(a) * 20);
+      return;
+    }
     const radius = 40;
     const a = t * 0.12;
     camera.position.set(Math.cos(a) * radius, 3 + Math.sin(t * 0.3) * 1.5, Math.sin(a) * radius);
@@ -57,7 +65,7 @@ export class OceanBench {
     const size = renderer.getDrawingBufferSize(new Vector2());
     const round = (v: number) => Math.round(v * 100) / 100;
     return {
-      scene: "ocean",
+      scene: this.scene,
       seconds: this.seconds,
       frames: this.deltasMs.length,
       fpsAvg: round((this.deltasMs.length * 1000) / totalMs),

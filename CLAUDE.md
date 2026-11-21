@@ -3,9 +3,10 @@
 Project: **OceanSurvival** (nama kerja). Game survival-lautan 3D first-person, co-op 2–4 pemain, berjalan di browser desktop (Chrome/Edge). Terinspirasi *jenis* gameplay Raft, tetapi seluruh identitas, aset, nama, cerita, dan kode **orisinal**.
 
 ## Status saat ini
-- Phase 0 ✅ · Phase 1 ✅ · Phase 3 ✅ ([laporan](docs/reports/PHASE_03_REPORT.md)) · **Phase 4 (laut & debris hanyut) sedang dikerjakan**.
-- PLACEHOLDER aktif: `RaftView` (rakit prosedural; layout tetap `START_RAFT_CELLS` sampai building Phase 7), `PlayerViews` (kapsul), `DebugFloaters` (kotak apung visual), `physics-spike` (regresi determinisme Rapier, dipertahankan).
+- Phase 0 ✅ · Phase 1 ✅ · Phase 3 ✅ · **Phase 4 (laut & debris hanyut) selesai, menunggu review owner** — [laporan](docs/reports/PHASE_04_REPORT.md). Phase 5 hanya setelah owner menyetujui.
+- PLACEHOLDER aktif: `RaftView` (rakit prosedural; layout tetap `START_RAFT_CELLS` sampai building Phase 7), `PlayerViews` (kapsul), `DebrisRenderer` (bentuk debris prosedural), `physics-spike` (regresi determinisme Rapier, dipertahankan).
 - **Frame rakit (ADR-0014)**: semua simulasi pemain dalam koordinat relatif-rakit; air mengalir `WATER_FLOW`; posisi rakit di dunia hanya untuk render (`raftWorldPosition`). Goyangan rakit/ombak = visual saja (`world/Presentation.ts`, `RaftSway.ts`). Jangan memasukkan waktu/posisi dunia ke `stepCharacter`.
+- **Debris**: statis di frame dunia (`worldX/worldZ/spawnTime`), tidak pernah diupdate per tick; client merender `world − raftWorld(t)`. Server: `sim/DebrisSystem.ts` (spawn/despawn/AOI via `StateView`, koleksi `debris` bertanda `.view()`). Tidak disimpan di save (di-prefill saat room dibuat).
 - Save format v2 (`parseSnapshot` + migrasi v1→v2). Perubahan format berikutnya: tambah `migrateV2toV3` + fixture test.
 - Movement: satu-satunya step = `stepCharacter` (shared). Jangan menambah logika gerak di client/server di luar fungsi itu; hasil wajib `Math.fround`. Test `tests/integration/prediction.test.ts` harus tetap 0 koreksi.
 - Git: remote `origin` = github.com/dimasabdhi/OceanSurvival, branch `main`. Setelah setiap phase/perubahan terverifikasi: commit lalu push.

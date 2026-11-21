@@ -41,6 +41,8 @@ Status: **Draft v1 (Phase 0)**. Dokumen ini adalah spesifikasi implementasi per 
 | Phase | 1 (shader prototype), 4 (gameplay), 13 (weather penuh) |
 
 ## C. Hook & Resource Collection
+
+> **Implementasi Phase 4 (debris):** `packages/shared/src/world/debris.ts` + `apps/server/src/sim/DebrisSystem.ts`. Debris diam di air (frame dunia); rakit hanyut melewatinya. Spawn 40–90 m di depan arah rakit, ±35 m ke samping; laju 1/2,2 s × (1 + 0,25·(n−1)); maks 60; despawn umur > 180 s atau > 120 m di belakang. Saat room dibuat, laut di-prefill ±60% kapasitas. Replikasi: hanya spawn/despawn (tanpa update per tick), AOI 120 m (+10 m hysteresis) per pemain via `StateView`, refresh 15 Hz. Hook = Phase 5.
 | Aspek | Spesifikasi |
 |---|---|
 | Authority | `S`. Client hanya memainkan animasi lempar & rope visual berdasar state hook yang direplikasi |
